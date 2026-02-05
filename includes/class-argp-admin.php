@@ -49,6 +49,9 @@ class ARGP_Admin {
 		add_action( 'admin_menu', array( $this, 'register_menus' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_post_argp_clear_cache', array( $this, 'handle_clear_cache' ) );
+		
+		// Hook pour synchroniser statut parent → enfants
+		add_action( 'transition_post_status', array( $this, 'sync_parent_children_status' ), 10, 3 );
 	}
 
 	/**
@@ -271,6 +274,7 @@ class ARGP_Admin {
 												name="argp_format" 
 												id="argp_format_global" 
 												value="global"
+												checked
 											/>
 											<div class="argp-radio-content">
 												<strong><?php esc_html_e( '1 Article Global', 'ai-recipe-generator-pro' ); ?></strong>
@@ -284,7 +288,6 @@ class ARGP_Admin {
 												name="argp_format" 
 												id="argp_format_tag" 
 												value="tag"
-												checked
 											/>
 											<div class="argp-radio-content">
 												<strong>📌 <?php esc_html_e( '1 Article par Recette + Tag', 'ai-recipe-generator-pro' ); ?></strong>
@@ -721,5 +724,60 @@ class ARGP_Admin {
 		}
 
 		return $count;
+	}
+
+	/**
+	 * Synchronise le statut de publication parent → enfants
+	 * Si l'article parent est publié, publie tous les enfants
+	 *
+	 * @param string  $new_status Nouveau statut.
+	 * @param string  $old_status Ancien statut.
+	 * @param WP_Post $post       Article.
+	 */
+	public function sync_parent_children_status( $new_status, $old_status, $post ) {
+		// Vérifier si c'est un post
+		if ( 'post' !== $post->post_type ) {
+			return;
+		}
+
+		// Vérifier si ce post a des enfants
+		$children = get_posts(
+			array(
+				'post_parent'    => $post->ID,
+				'post_type'      => 'post',
+				'post_status'    => 'any',
+				'numberposts'    => -1,
+			)
+		);
+
+		if ( empty( $children ) ) {
+			return;
+		}
+
+		// Si le parent passe à "publish", publier tous les enfants
+		if ( 'publish' === $new_status && 'publish' !== $old_status ) {
+			foreach ( $children as $child ) {
+				wp_update_post(
+					array(
+						'ID'          => $child->ID,
+						'post_status' => 'publish',
+					)
+				);
+			}
+		}
+
+		// Si le parent passe à "draft", mettre les enfants en draft
+		if ( 'draft' === $new_status && 'draft' !== $old_status ) {
+			foreach ( $children as $child ) {
+				if ( 'publish' === $child->post_status ) {
+					wp_update_post(
+						array(
+							'ID'          => $child->ID,
+							'post_status' => 'draft',
+						)
+					);
+				}
+			}
+		}
 	}
 }

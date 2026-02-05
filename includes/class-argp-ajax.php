@@ -536,7 +536,7 @@ class ARGP_Ajax {
 	}
 
 	/**
-	 * Mode TAG : 1 article par recette + tag commun
+	 * Mode TAG : 1 article parent + 1 article par recette + tag commun
 	 */
 	private function create_posts_with_tag( &$job ) {
 		$openai_data = $job['openai_json'];
@@ -562,10 +562,26 @@ class ARGP_Ajax {
 		$job['created_tag_id'] = $tag_id;
 		$job['created_post_ids'] = array();
 
-		// Créer un article pour chaque recette
+		// 1. Créer l'article parent (non publié, sert de contrôleur)
+		$parent_content = '<p>' . wp_kses_post( $openai_data['intro'] ) . '</p>';
+		$parent_content .= "\n\n<p><em>" . __( 'Cet article parent contrôle la publication des recettes associées. Les recettes individuelles sont listées ci-dessous.', 'ai-recipe-generator-pro' ) . '</em></p>';
+
+		$parent_id = wp_insert_post(
+			array(
+				'post_title'   => sanitize_text_field( $title ),
+				'post_content' => $parent_content,
+				'post_status'  => 'draft', // Toujours en brouillon (contrôleur)
+				'post_type'    => 'post',
+				'post_author'  => get_current_user_id(),
+				'tags_input'   => array( $tag_id ),
+			)
+		);
+
+		$job['created_post_id'] = $parent_id; // Article parent pour edit_link
+
+		// 2. Créer un article enfant pour chaque recette
 		foreach ( $openai_data['recipes'] as $index => $recipe ) {
 			$recipe_content = '<p>' . wp_kses_post( $openai_data['intro'] ) . '</p>';
-			$recipe_content .= "\n\n<h2>" . esc_html( $recipe['name'] ) . "</h2>";
 			$recipe_content .= "\n\n<h3>" . __( 'Ingrédients', 'ai-recipe-generator-pro' ) . "</h3>";
 			$recipe_content .= "\n<ul>";
 			foreach ( $recipe['ingredients'] as $ingredient ) {
@@ -579,19 +595,20 @@ class ARGP_Ajax {
 			}
 			$recipe_content .= "\n</ol>";
 
-			$post_id = wp_insert_post(
+			$child_id = wp_insert_post(
 				array(
 					'post_title'   => sanitize_text_field( $recipe['name'] ),
 					'post_content' => $recipe_content,
 					'post_status'  => $job['status'],
 					'post_type'    => 'post',
 					'post_author'  => get_current_user_id(),
+					'post_parent'  => $parent_id, // Lien parent-enfant
 					'tags_input'   => array( $tag_id ),
 				)
 			);
 
-			if ( ! is_wp_error( $post_id ) ) {
-				$job['created_post_ids'][] = $post_id;
+			if ( ! is_wp_error( $child_id ) ) {
+				$job['created_post_ids'][] = $child_id;
 			}
 		}
 
@@ -601,11 +618,11 @@ class ARGP_Ajax {
 			'done'     => false,
 			'progress' => 30,
 			'message'  => sprintf(
-				__( '%d article(s) créé(s) avec tag "%s". Génération des images...', 'ai-recipe-generator-pro' ),
+				__( 'Article parent + %d recette(s) créé(s) avec tag "%s". Génération des images...', 'ai-recipe-generator-pro' ),
 				count( $job['created_post_ids'] ),
 				$tag_name
 			),
-			'post_id'  => $job['created_post_ids'],
+			'post_id'  => $parent_id,
 		);
 	}
 
@@ -918,48 +935,70 @@ class ARGP_Ajax {
 	}
 
 	/**
-	 * Ajoute des vignettes Pinterest aux articles en mode tag
+	 * Ajoute une section "Recettes du même thème" style WordPress
 	 */
 	private function add_pinterest_thumbnails_to_posts( &$job ) {
-		$recipes = $job['openai_json']['recipes'];
-		$post_ids = $job['created_post_ids'];
+		$tag_id = $job['created_tag_id'];
+		
+		if ( ! $tag_id ) {
+			return;
+		}
 
-		// Pour chaque article
-		foreach ( $post_ids as $index => $post_id ) {
+		$tag = get_term( $tag_id );
+		if ( is_wp_error( $tag ) ) {
+			return;
+		}
+
+		// Récupérer tous les articles du tag (y compris les nouvelles recettes)
+		$tag_posts = get_posts(
+			array(
+				'tag_id'      => $tag_id,
+				'numberposts' => -1,
+				'post_status' => array( 'publish', 'draft' ),
+				'orderby'     => 'date',
+				'order'       => 'DESC',
+			)
+		);
+
+		// Pour chaque article enfant (pas le parent)
+		foreach ( $job['created_post_ids'] as $post_id ) {
 			$post = get_post( $post_id );
 			if ( ! $post ) {
 				continue;
 			}
 
-			// Construire HTML des vignettes (autres recettes)
-			$thumbnails_html = "\n\n" . '<div class="argp-recipe-thumbnails">';
+			// Section "Autres recettes de ce thème"
+			$related_html = "\n\n" . '<div class="argp-related-recipes-section">';
+			$related_html .= '<h3 class="argp-related-title">' . sprintf( __( 'Autres recettes : %s', 'ai-recipe-generator-pro' ), esc_html( $tag->name ) ) . '</h3>';
+			$related_html .= '<div class="argp-recipe-thumbnails">';
 
-			foreach ( $post_ids as $other_index => $other_post_id ) {
-				if ( $other_index === $index ) {
-					continue; // Skip la recette actuelle
+			foreach ( $tag_posts as $related_post ) {
+				// Skip l'article actuel et l'article parent
+				if ( $related_post->ID === $post_id || $related_post->ID === $job['created_post_id'] ) {
+					continue;
 				}
 
-				$other_post = get_post( $other_post_id );
-				$other_thumbnail = get_the_post_thumbnail_url( $other_post_id, 'medium' );
-				$other_url = get_permalink( $other_post_id );
+				$thumbnail_url = get_the_post_thumbnail_url( $related_post->ID, 'medium' );
+				$permalink = get_permalink( $related_post->ID );
 
-				$thumbnails_html .= '<a href="' . esc_url( $other_url ) . '" class="argp-recipe-thumbnail">';
-				if ( $other_thumbnail ) {
-					$thumbnails_html .= '<img src="' . esc_url( $other_thumbnail ) . '" alt="' . esc_attr( $other_post->post_title ) . '" class="argp-recipe-thumbnail-image" />';
+				$related_html .= '<a href="' . esc_url( $permalink ) . '" class="argp-recipe-thumbnail">';
+				if ( $thumbnail_url ) {
+					$related_html .= '<img src="' . esc_url( $thumbnail_url ) . '" alt="' . esc_attr( $related_post->post_title ) . '" class="argp-recipe-thumbnail-image" loading="lazy" />';
+				} else {
+					$related_html .= '<div class="argp-recipe-thumbnail-placeholder">📸</div>';
 				}
-				$thumbnails_html .= '<div class="argp-recipe-thumbnail-title">' . esc_html( $other_post->post_title ) . '</div>';
-				$thumbnails_html .= '</a>';
+				$related_html .= '<div class="argp-recipe-thumbnail-title">' . esc_html( $related_post->post_title ) . '</div>';
+				$related_html .= '</a>';
 			}
 
-			$thumbnails_html .= '</div>';
+			$related_html .= '</div>';
+			$related_html .= '</div>';
 
-			// Ajouter au contenu
-			$new_content = $post->post_content . $thumbnails_html;
-
+			// Ajouter au contenu de l'article
 			wp_update_post(
 				array(
 					'ID'           => $post_id,
-					'post_content' => $new_content,
+					'post_content' => $post->post_content . $related_html,
 				)
 			);
 		}
@@ -1269,23 +1308,9 @@ class ARGP_Ajax {
 				return;
 			}
 
-			// Ajouter l'image en début d'article
+			// Définir comme image à la une (sans l'ajouter au contenu pour éviter doublon)
 			if ( $attachment_id ) {
-				$post = get_post( $target_post_id );
-				if ( $post ) {
-					$image_html = wp_get_attachment_image( $attachment_id, 'large', false, array( 'class' => 'recipe-featured-image' ) );
-					$new_content = $image_html . "\n\n" . $post->post_content;
-					
-					wp_update_post(
-						array(
-							'ID'           => $target_post_id,
-							'post_content' => $new_content,
-						)
-					);
-
-					// Définir comme image à la une
-					set_post_thumbnail( $target_post_id, $attachment_id );
-				}
+				set_post_thumbnail( $target_post_id, $attachment_id );
 			}
 
 			return;
