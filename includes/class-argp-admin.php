@@ -318,7 +318,7 @@ class ARGP_Admin {
 								<span class="argp-toggle-icon dashicons dashicons-arrow-down-alt2"></span>
 							</h2>
 						</div>
-						<div class="argp-card-body" id="argp-advanced-image-settings" style="display: none;">
+						<div class="argp-card-body" id="argp-advanced-image-settings">
 							<div class="argp-field-group">
 								<label class="argp-label">
 									<input type="checkbox" id="argp_high_quality" name="argp_high_quality" value="1" />

@@ -441,12 +441,13 @@
 				return;
 			}
 
-			// Masquer formulaire et bloc images de référence
+			// Masquer formulaire, images ET options avancées pendant génération
 			$('#argp-generate-form').parent().hide();
 			$('.argp-card-images').hide();
 			$('.argp-card-image-settings').hide();
 			$('.argp-generate-action').hide();
 			
+			// Afficher progression
 			$('#argp-progress-container').show();
 			$('#argp-results-container').hide();
 
