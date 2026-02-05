@@ -83,6 +83,62 @@ Le diagnostic vérifie :
 3. Cliquez sur une suggestion pour la sélectionner
 4. Le titre est automatiquement rempli dans le champ
 
+### Génération complète d'articles (Phase 3) ⭐
+
+#### Étapes
+
+1. **Accéder à la page** : AI Recipe Pro → Générer
+
+2. **Remplir le formulaire** :
+   - **Sujet/Thème** (requis) : Ex. "recettes végétariennes rapides"
+   - **Nombre de recettes** : De 1 à 10
+   - **Titre** : Laisser vide pour utiliser le sujet, ou utiliser "Suggérer"
+   - **Statut de l'article** :
+     - **Brouillon (draft)** : Recommandé pour relire avant publication
+     - **Publié (publish)** : Publication immédiate
+
+3. **Cliquer sur "Générer l'article complet"**
+
+4. **Observer la progression** :
+   - Barre de progression animée (0-100%)
+   - Logs en temps réel :
+     - ✓ Génération démarrée
+     - ✓ Contenu généré avec succès
+     - ✓ Article créé (ID: XXX)
+     - ✓ Génération de l'image 1/3...
+     - ✓ Recette 1/3 ajoutée avec image
+     - ✓ Génération terminée !
+   - Bouton "Annuler" disponible pendant la génération
+
+5. **Résultats** :
+   - Message de succès
+   - Lien "Modifier l'article" pour éditer dans WordPress
+   - Warnings si certaines images n'ont pas pu être générées
+   - Bouton "Générer un autre article"
+
+#### Ce qui est généré
+
+L'article contient :
+- **Introduction** : Paragraphe engageant généré par OpenAI
+- **Pour chaque recette** :
+  - Titre (H2)
+  - Image culinaire réaliste (générée par Replicate)
+  - Liste des ingrédients (H3 + liste à puces)
+  - Instructions étape par étape (H3 + liste numérotée)
+
+#### Temps de génération
+
+Approximatif (dépend des API) :
+- 1 recette : ~45-60 secondes
+- 3 recettes : ~1m30-2m
+- 10 recettes : ~5-8 minutes
+
+#### En cas de problème
+
+- **Images manquantes** : L'article est créé malgré tout, un warning s'affiche
+- **Timeout OpenAI** : Réessayez après quelques minutes
+- **Quota dépassé** : Vérifiez vos crédits sur OpenAI/Replicate
+
 ## 🔒 Sécurité
 
 Le plugin respecte toutes les bonnes pratiques WordPress :
@@ -110,9 +166,20 @@ Le plugin respecte toutes les bonnes pratiques WordPress :
 - Gestion complète des erreurs (401, 429, timeout, etc.)
 - UX optimale avec spinner et messages clairs
 
-### 🔄 Phase 3 (À venir)
-- Intégration OpenAI pour génération complète de recettes
-- Génération de contenu structuré (ingrédients, instructions, etc.)
+### ✅ Phase 3 (Complété) ⭐
+- **Génération complète d'articles WordPress** avec texte + images
+- Architecture job/transient pour éviter les timeouts
+- **OpenAI (GPT-4o)** : Génération de contenu structuré (JSON)
+- **Replicate (Flux 2 Pro)** : Génération d'images culinaires
+- Téléchargement automatique des images dans la Media Library
+- Création d'articles en draft ou publish
+- Barre de progression en temps réel
+- Logs détaillés de chaque étape
+- Gestion d'erreurs robuste (continue sans image si échec Replicate)
+
+### 🔄 Phase 4-5 (À venir)
+- Exports (PDF, JSON, schema.org)
+- Optimisations performances
 
 ### 🔄 Phase 4 (À venir)
 - Intégration Replicate pour génération d'images

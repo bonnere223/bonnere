@@ -4,9 +4,9 @@
 
 Plugin WordPress professionnel pour générer des recettes intelligentes avec OpenAI et Replicate, puis les publier automatiquement.
 
-## ✅ Statut : Phase 2 Complète
+## ✅ Statut : Phase 3 Complète ⭐
 
-Le plugin est maintenant fonctionnel avec intégration OpenAI pour les suggestions de titres.
+Le plugin est maintenant pleinement fonctionnel avec génération complète d'articles (texte + images) !
 
 ## 📦 Contenu du dépôt
 
@@ -53,6 +53,32 @@ Le plugin est maintenant fonctionnel avec intégration OpenAI pour les suggestio
 - Gestion d'erreurs complète (clé invalide, quota, timeout)
 - Interface AJAX réactive avec spinner
 - Design moderne et responsive
+
+### Phase 3 : Génération complète d'articles ✅ ⭐
+- **Architecture job/transient avec polling** (évite timeouts PHP)
+- **OpenAI (GPT-4o)** : Génération JSON structuré
+  - Introduction engageante
+  - Recettes avec nom, ingrédients, instructions, image_prompt
+  - Temperature 0.7, max 3000 tokens
+- **Replicate (Flux 2 Pro)** : Génération d'images
+  - Polling automatique des prédictions
+  - Gestion quota/erreurs (continue sans image si échec)
+- **Media Library WordPress** :
+  - Téléchargement automatique des images
+  - Intégration avec `media_handle_sideload()`
+  - Association au post parent
+- **Création d'articles** :
+  - Statut draft ou publish au choix
+  - Format HTML structuré (H2, H3, ul, ol)
+  - Mise à jour incrémentale du contenu
+- **Interface utilisateur** :
+  - Barre de progression animée (0-100%)
+  - Logs détaillés en temps réel avec timestamps
+  - Bouton annulation
+  - Lien "Modifier l'article" en fin de génération
+  - Affichage des erreurs warnings
+- **Système de tick** : Polling AJAX toutes les 2s
+- **Sécurité renforcée** : Nonces, capabilities, transient avec expiration
 
 ## 🔒 Sécurité
 
