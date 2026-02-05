@@ -84,6 +84,9 @@ class AI_Recipe_Generator_Pro {
 		// Chargement de la textdomain pour l'internationalisation
 		add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
 
+		// PHASE 5: Hook pour le cron de nettoyage quotidien
+		add_action( 'argp_daily_cleanup', array( $this, 'daily_cleanup' ) );
+
 		// Initialiser les composants admin
 		if ( is_admin() ) {
 			ARGP_Admin::get_instance();
@@ -97,14 +100,12 @@ class AI_Recipe_Generator_Pro {
 	 * Activation du plugin
 	 */
 	public function activate() {
-		// TODO: Créer les tables custom si nécessaire pour les phases futures
-		// TODO: Définir les options par défaut
-		
 		// Options par défaut
 		$default_options = array(
 			'openai_api_key'      => '',
 			'replicate_api_key'   => '',
 			'manual_titles'       => '',
+			'enable_debug'        => false, // PHASE 5
 		);
 		
 		// Ajouter les options si elles n'existent pas
@@ -112,7 +113,12 @@ class AI_Recipe_Generator_Pro {
 			add_option( 'argp_settings', $default_options );
 		}
 
-		// Flush les rewrite rules si on ajoute des CPT plus tard
+		// PHASE 5: Programmer le cron de nettoyage quotidien
+		if ( ! wp_next_scheduled( 'argp_daily_cleanup' ) ) {
+			wp_schedule_event( time(), 'daily', 'argp_daily_cleanup' );
+		}
+
+		// Flush les rewrite rules
 		flush_rewrite_rules();
 	}
 
@@ -120,10 +126,14 @@ class AI_Recipe_Generator_Pro {
 	 * Désactivation du plugin
 	 */
 	public function deactivate() {
+		// PHASE 5: Supprimer le cron programmé
+		$timestamp = wp_next_scheduled( 'argp_daily_cleanup' );
+		if ( $timestamp ) {
+			wp_unschedule_event( $timestamp, 'argp_daily_cleanup' );
+		}
+
 		// Flush les rewrite rules
 		flush_rewrite_rules();
-		
-		// TODO: Nettoyage si nécessaire (ne pas supprimer les données par défaut)
 	}
 
 	/**
@@ -135,6 +145,58 @@ class AI_Recipe_Generator_Pro {
 			false,
 			dirname( ARGP_PLUGIN_BASENAME ) . '/languages'
 		);
+	}
+
+	/**
+	 * PHASE 5: Nettoyage quotidien automatique
+	 * Nettoie les transients expirés et fichiers temporaires
+	 */
+	public function daily_cleanup() {
+		global $wpdb;
+
+		// Nettoyer les transients jobs expirés (argp_job_*)
+		$deleted = $wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->options} 
+				WHERE option_name LIKE %s 
+				OR option_name LIKE %s",
+				'%_transient_argp_job_%',
+				'%_transient_timeout_argp_job_%'
+			)
+		);
+
+		// Nettoyer les transients utilisateurs expirés (argp_user_*)
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->options} 
+				WHERE option_name LIKE %s 
+				OR option_name LIKE %s",
+				'%_transient_argp_user_%',
+				'%_transient_timeout_argp_user_%'
+			)
+		);
+
+		// Nettoyer les fichiers temporaires
+		$temp_dir = get_temp_dir();
+		$patterns = array( 'argp-images-*', 'argp-recettes-*' );
+
+		foreach ( $patterns as $pattern ) {
+			$files = glob( $temp_dir . $pattern );
+
+			if ( is_array( $files ) ) {
+				foreach ( $files as $file ) {
+					// Supprimer si > 24h
+					if ( is_file( $file ) && ( time() - filemtime( $file ) ) > DAY_IN_SECONDS ) {
+						@unlink( $file );
+					}
+				}
+			}
+		}
+
+		// Log si debug activé
+		if ( class_exists( 'ARGP_Settings' ) && ARGP_Settings::is_debug_enabled() ) {
+			error_log( '[AI Recipe Generator Pro] Nettoyage quotidien effectué - ' . $deleted . ' transients supprimés' );
+		}
 	}
 }
 

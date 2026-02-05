@@ -457,6 +457,51 @@ button:disabled:not(.argp-loading)::after {
 }
 
 /* ========================================
+   PHASE 5: ACCESSIBILITÉ & ÉTATS
+   ======================================== */
+
+/* États disabled améliorés */
+button:disabled,
+button[aria-busy="true"] {
+	opacity: 0.5;
+	cursor: not-allowed;
+	filter: grayscale(50%);
+}
+
+button:disabled:hover,
+button[aria-busy="true"]:hover {
+	transform: none;
+}
+
+/* Zones aria-live */
+[aria-live] {
+	position: relative;
+}
+
+/* Focus visible pour accessibilité */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: 2px;
+}
+
+/* États de chargement accessibles */
+.argp-loading[aria-busy="true"]::before {
+	content: '';
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	border: 2px solid #fff;
+	border-top-color: transparent;
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+	margin-right: 8px;
+	vertical-align: middle;
+}
+
+/* ========================================
    DARK MODE SUPPORT (WordPress 5.7+)
    ======================================== */
 
@@ -464,7 +509,8 @@ button:disabled:not(.argp-loading)::after {
 	.argp-generate-form-container,
 	.argp-settings-container form,
 	.argp-diagnostics-section,
-	.argp-results-container {
+	.argp-results-container,
+	.argp-progress-container {
 		background: #1d2327;
 		border-color: #3c434a;
 	}
@@ -500,6 +546,25 @@ button:disabled:not(.argp-loading)::after {
 		background: #1d2327;
 		border-color: #3c434a;
 		color: #a7aaad;
+	}
+
+	.argp-progress-status {
+		background: #2c3338;
+		color: #f0f0f1;
+	}
+
+	.argp-progress-logs {
+		background: #2c3338;
+		border-color: #3c434a;
+	}
+
+	.argp-log-entry {
+		background: #1d2327;
+	}
+
+	.argp-log-message,
+	.argp-log-time {
+		color: #f0f0f1;
 	}
 }
 

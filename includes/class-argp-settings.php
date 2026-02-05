@@ -104,6 +104,23 @@ class ARGP_Settings {
 			'argp-settings',
 			'argp_preferences_section'
 		);
+
+		// PHASE 5: Section Debug
+		add_settings_section(
+			'argp_debug_section',
+			__( 'Options avancées', 'ai-recipe-generator-pro' ),
+			array( $this, 'render_debug_section_callback' ),
+			'argp-settings'
+		);
+
+		// PHASE 5: Champ Debug
+		add_settings_field(
+			'enable_debug',
+			__( 'Activer les logs', 'ai-recipe-generator-pro' ),
+			array( $this, 'render_debug_field' ),
+			'argp-settings',
+			'argp_debug_section'
+		);
 	}
 
 	/**
@@ -113,6 +130,19 @@ class ARGP_Settings {
 		echo '<p class="description">';
 		esc_html_e( 'Configurez vos clés API pour OpenAI et Replicate. Ces clés sont nécessaires pour générer du contenu avec l\'IA.', 'ai-recipe-generator-pro' );
 		echo '</p>';
+
+		// PHASE 5: Warning si chiffrement indisponible
+		if ( ! function_exists( 'openssl_encrypt' ) ) {
+			echo '<div class="notice notice-warning inline">';
+			echo '<p><strong>' . esc_html__( '⚠️ Attention :', 'ai-recipe-generator-pro' ) . '</strong> ';
+			esc_html_e( 'L\'extension OpenSSL n\'est pas disponible sur votre serveur. Les clés API seront stockées en clair dans la base de données. Pour plus de sécurité, contactez votre hébergeur pour activer OpenSSL.', 'ai-recipe-generator-pro' );
+			echo '</p></div>';
+		} else {
+			echo '<div class="notice notice-success inline">';
+			echo '<p><strong>' . esc_html__( '✓ Sécurité :', 'ai-recipe-generator-pro' ) . '</strong> ';
+			esc_html_e( 'Les clés API sont chiffrées avant stockage avec OpenSSL (AES-256-CBC).', 'ai-recipe-generator-pro' );
+			echo '</p></div>';
+		}
 	}
 
 	/**
@@ -125,11 +155,20 @@ class ARGP_Settings {
 	}
 
 	/**
+	 * PHASE 5: Callback de la section Debug
+	 */
+	public function render_debug_section_callback() {
+		echo '<p class="description">';
+		esc_html_e( 'Options de débogage et maintenance. Activer uniquement si vous rencontrez des problèmes.', 'ai-recipe-generator-pro' );
+		echo '</p>';
+	}
+
+	/**
 	 * Affiche le champ OpenAI API Key
 	 */
 	public function render_openai_api_key_field() {
 		$options = get_option( $this->option_name, array() );
-		$value   = isset( $options['openai_api_key'] ) ? $options['openai_api_key'] : '';
+		$value   = isset( $options['openai_api_key'] ) ? $this->decrypt_api_key( $options['openai_api_key'] ) : '';
 		$masked  = ! empty( $value ) ? str_repeat( '•', 20 ) . substr( $value, -4 ) : '';
 
 		?>
@@ -140,6 +179,7 @@ class ARGP_Settings {
 			value="<?php echo esc_attr( $value ); ?>" 
 			class="regular-text argp-api-key-field"
 			placeholder="sk-..."
+			maxlength="200"
 		/>
 		<button type="button" class="button button-small argp-toggle-visibility" data-target="argp_openai_api_key">
 			<?php esc_html_e( 'Afficher', 'ai-recipe-generator-pro' ); ?>
@@ -164,7 +204,7 @@ class ARGP_Settings {
 	 */
 	public function render_replicate_api_key_field() {
 		$options = get_option( $this->option_name, array() );
-		$value   = isset( $options['replicate_api_key'] ) ? $options['replicate_api_key'] : '';
+		$value   = isset( $options['replicate_api_key'] ) ? $this->decrypt_api_key( $options['replicate_api_key'] ) : '';
 		$masked  = ! empty( $value ) ? str_repeat( '•', 20 ) . substr( $value, -4 ) : '';
 
 		?>
@@ -175,6 +215,7 @@ class ARGP_Settings {
 			value="<?php echo esc_attr( $value ); ?>" 
 			class="regular-text argp-api-key-field"
 			placeholder="r8_..."
+			maxlength="200"
 		/>
 		<button type="button" class="button button-small argp-toggle-visibility" data-target="argp_replicate_api_key">
 			<?php esc_html_e( 'Afficher', 'ai-recipe-generator-pro' ); ?>
@@ -218,6 +259,30 @@ class ARGP_Settings {
 	}
 
 	/**
+	 * PHASE 5: Affiche le champ Debug
+	 */
+	public function render_debug_field() {
+		$options = get_option( $this->option_name, array() );
+		$value   = isset( $options['enable_debug'] ) ? (bool) $options['enable_debug'] : false;
+
+		?>
+		<label>
+			<input 
+				type="checkbox" 
+				id="argp_enable_debug" 
+				name="<?php echo esc_attr( $this->option_name ); ?>[enable_debug]" 
+				value="1"
+				<?php checked( $value, true ); ?>
+			/>
+			<?php esc_html_e( 'Activer les logs de débogage', 'ai-recipe-generator-pro' ); ?>
+		</label>
+		<p class="description">
+			<?php esc_html_e( 'Les événements seront enregistrés dans le fichier de log WordPress (wp-content/debug.log). Activez uniquement en cas de problème pour diagnostiquer les erreurs.', 'ai-recipe-generator-pro' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
 	 * Sanitize les réglages avant sauvegarde
 	 *
 	 * @param array $input Données du formulaire.
@@ -226,14 +291,18 @@ class ARGP_Settings {
 	public function sanitize_settings( $input ) {
 		$sanitized = array();
 
-		// Sanitize OpenAI API Key
+		// PHASE 5: Sanitize et chiffrer OpenAI API Key
 		if ( isset( $input['openai_api_key'] ) ) {
-			$sanitized['openai_api_key'] = sanitize_text_field( $input['openai_api_key'] );
+			$key = sanitize_text_field( $input['openai_api_key'] );
+			$key = substr( $key, 0, 200 ); // Limite 200 caractères
+			$sanitized['openai_api_key'] = $this->encrypt_api_key( $key );
 		}
 
-		// Sanitize Replicate API Key
+		// PHASE 5: Sanitize et chiffrer Replicate API Key
 		if ( isset( $input['replicate_api_key'] ) ) {
-			$sanitized['replicate_api_key'] = sanitize_text_field( $input['replicate_api_key'] );
+			$key = sanitize_text_field( $input['replicate_api_key'] );
+			$key = substr( $key, 0, 200 ); // Limite 200 caractères
+			$sanitized['replicate_api_key'] = $this->encrypt_api_key( $key );
 		}
 
 		// Sanitize Manual Titles (textarea)
@@ -241,7 +310,101 @@ class ARGP_Settings {
 			$sanitized['manual_titles'] = sanitize_textarea_field( $input['manual_titles'] );
 		}
 
+		// PHASE 5: Sanitize Debug option
+		$sanitized['enable_debug'] = isset( $input['enable_debug'] ) && '1' === $input['enable_debug'];
+
 		return $sanitized;
+	}
+
+	/* ========================================
+	   PHASE 5: CHIFFREMENT DES CLÉS API
+	   ======================================== */
+
+	/**
+	 * Chiffre une clé API avec OpenSSL (AES-256-CBC)
+	 *
+	 * @param string $key Clé en clair.
+	 * @return string Clé chiffrée (base64) ou clé en clair si openssl indisponible.
+	 */
+	private function encrypt_api_key( $key ) {
+		if ( empty( $key ) ) {
+			return '';
+		}
+
+		// Si openssl n'est pas disponible, stocker en clair
+		if ( ! function_exists( 'openssl_encrypt' ) ) {
+			return $key;
+		}
+
+		// Si la clé est déjà chiffrée (base64 sans préfixe sk-/r8_), ne pas rechiffrer
+		if ( ! preg_match( '/^(sk-|r8_)/', $key ) && base64_decode( $key, true ) !== false ) {
+			return $key;
+		}
+
+		$method     = 'AES-256-CBC';
+		$secret_key = substr( AUTH_KEY . SECURE_AUTH_KEY, 0, 32 );
+		$iv         = substr( NONCE_KEY, 0, 16 );
+
+		$encrypted = openssl_encrypt( $key, $method, $secret_key, 0, $iv );
+
+		if ( false === $encrypted ) {
+			// Fallback : stocker en clair
+			return $key;
+		}
+
+		return base64_encode( $encrypted );
+	}
+
+	/**
+	 * Déchiffre une clé API
+	 *
+	 * @param string $encrypted Clé chiffrée (base64).
+	 * @return string Clé en clair.
+	 */
+	private function decrypt_api_key( $encrypted ) {
+		if ( empty( $encrypted ) ) {
+			return '';
+		}
+
+		// Si la clé commence par sk- ou r8_, elle est déjà en clair
+		if ( preg_match( '/^(sk-|r8_)/', $encrypted ) ) {
+			return $encrypted;
+		}
+
+		// Si openssl n'est pas disponible, assume clair
+		if ( ! function_exists( 'openssl_decrypt' ) ) {
+			return $encrypted;
+		}
+
+		$method     = 'AES-256-CBC';
+		$secret_key = substr( AUTH_KEY . SECURE_AUTH_KEY, 0, 32 );
+		$iv         = substr( NONCE_KEY, 0, 16 );
+
+		$decrypted = openssl_decrypt( base64_decode( $encrypted ), $method, $secret_key, 0, $iv );
+
+		if ( false === $decrypted ) {
+			// Fallback : retourner tel quel
+			return $encrypted;
+		}
+
+		return $decrypted;
+	}
+
+	/**
+	 * PHASE 5: Récupère une clé déchiffrée (méthode statique publique)
+	 *
+	 * @param string $key_name Nom de la clé (openai_api_key ou replicate_api_key).
+	 * @return string Clé déchiffrée.
+	 */
+	public static function get_decrypted_key( $key_name ) {
+		$options = get_option( 'argp_settings', array() );
+
+		if ( ! isset( $options[ $key_name ] ) ) {
+			return '';
+		}
+
+		$instance = self::get_instance();
+		return $instance->decrypt_api_key( $options[ $key_name ] );
 	}
 
 	/**
@@ -254,5 +417,34 @@ class ARGP_Settings {
 	public static function get_option( $key, $default = '' ) {
 		$options = get_option( 'argp_settings', array() );
 		return isset( $options[ $key ] ) ? $options[ $key ] : $default;
+	}
+
+	/**
+	 * PHASE 5: Vérifie si le mode debug est activé
+	 *
+	 * @return bool True si debug activé.
+	 */
+	public static function is_debug_enabled() {
+		return (bool) self::get_option( 'enable_debug', false );
+	}
+
+	/**
+	 * PHASE 5: Log un message si debug activé
+	 *
+	 * @param string $message Message à logger.
+	 * @param string $level   Niveau (info, warning, error).
+	 */
+	public static function log( $message, $level = 'info' ) {
+		if ( ! self::is_debug_enabled() ) {
+			return;
+		}
+
+		$formatted = sprintf(
+			'[AI Recipe Generator Pro] [%s] %s',
+			strtoupper( $level ),
+			$message
+		);
+
+		error_log( $formatted );
 	}
 }

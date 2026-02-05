@@ -57,6 +57,9 @@ class ARGP_Ajax {
 		add_action( 'wp_ajax_argp_start_generation', array( $this, 'handle_start_generation' ) );
 		add_action( 'wp_ajax_argp_generation_tick', array( $this, 'handle_generation_tick' ) );
 		add_action( 'wp_ajax_argp_cancel_generation', array( $this, 'handle_cancel_generation' ) );
+
+		// PHASE 5: Hook pour récupérer job en cours
+		add_action( 'wp_ajax_argp_get_current_job', array( $this, 'handle_get_current_job' ) );
 	}
 
 	/**
@@ -182,8 +185,9 @@ class ARGP_Ajax {
 		);
 
 		// Test 5 : Vérifier les clés API (sans les révéler)
-		$openai_key = ARGP_Settings::get_option( 'openai_api_key', '' );
-		$replicate_key = ARGP_Settings::get_option( 'replicate_api_key', '' );
+		// PHASE 5: Utiliser clés déchiffrées
+		$openai_key = ARGP_Settings::get_decrypted_key( 'openai_api_key' );
+		$replicate_key = ARGP_Settings::get_decrypted_key( 'replicate_api_key' );
 
 		$results['api_keys'] = array(
 			'label'   => __( 'Clés API configurées', 'ai-recipe-generator-pro' ),
@@ -223,8 +227,8 @@ class ARGP_Ajax {
 			);
 		}
 
-		// Récupérer la clé API OpenAI
-		$openai_key = ARGP_Settings::get_option( 'openai_api_key', '' );
+		// PHASE 5: Récupérer la clé API OpenAI déchiffrée
+		$openai_key = ARGP_Settings::get_decrypted_key( 'openai_api_key' );
 		if ( empty( $openai_key ) ) {
 			wp_send_json_error(
 				array(
@@ -276,27 +280,32 @@ class ARGP_Ajax {
 	public function handle_start_generation() {
 		$this->check_ajax_security();
 
+		// PHASE 5: Vérifier rate limiting
+		$this->check_rate_limit();
+
 		// Récupérer et valider les inputs
 		$subject = isset( $_POST['subject'] ) ? sanitize_text_field( wp_unslash( $_POST['subject'] ) ) : '';
 		$count   = isset( $_POST['count'] ) ? absint( $_POST['count'] ) : 1;
 		$title   = isset( $_POST['title'] ) ? sanitize_text_field( wp_unslash( $_POST['title'] ) ) : '';
 		$status  = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : 'draft';
 
+		// PHASE 5: Validations renforcées
+		$subject = substr( $subject, 0, 200 ); // Limite 200 caractères
+		$title   = substr( $title, 0, 200 );
+		$count   = max( 1, min( 10, $count ) ); // Clamp 1-10
+
 		// Validation
 		if ( empty( $subject ) ) {
 			wp_send_json_error( array( 'message' => __( 'Le sujet est requis.', 'ai-recipe-generator-pro' ) ) );
 		}
 
-		if ( $count < 1 || $count > 10 ) {
-			wp_send_json_error( array( 'message' => __( 'Le nombre de recettes doit être entre 1 et 10.', 'ai-recipe-generator-pro' ) ) );
-		}
-
+		// PHASE 5: Validation stricte du statut
 		if ( ! in_array( $status, array( 'draft', 'publish' ), true ) ) {
 			$status = 'draft';
 		}
 
-		// Vérifier les clés API
-		$openai_key = ARGP_Settings::get_option( 'openai_api_key', '' );
+		// PHASE 5: Utiliser clé déchiffrée
+		$openai_key = ARGP_Settings::get_decrypted_key( 'openai_api_key' );
 		if ( empty( $openai_key ) ) {
 			wp_send_json_error( array( 'message' => __( 'Clé API OpenAI manquante.', 'ai-recipe-generator-pro' ) ) );
 		}
@@ -313,11 +322,18 @@ class ARGP_Ajax {
 			'created_post_id'   => null,
 			'replicate_results' => array(),
 			'errors'            => array(),
+			'events'            => array(), // PHASE 5: Logs des événements
 			'started_at'        => time(),
 		);
 
-		// Sauvegarder le job dans un transient (expire après 1 heure)
-		set_transient( $job_id, $job_data, HOUR_IN_SECONDS );
+		// PHASE 5: Sauvegarder avec TTL 30 min (au lieu de 1h)
+		set_transient( $job_id, $job_data, 30 * MINUTE_IN_SECONDS );
+
+		// PHASE 5: Enregistrer le démarrage (rate limiting)
+		$this->register_job_start( $job_id );
+
+		// PHASE 5: Log
+		ARGP_Settings::log( "Job {$job_id} démarré - Sujet: {$subject}, Recettes: {$count}", 'info' );
 
 		wp_send_json_success(
 			array(
@@ -344,14 +360,16 @@ class ARGP_Ajax {
 		$job = get_transient( $job_id );
 
 		if ( false === $job ) {
+			// PHASE 5: Unregister si expiré
+			$this->unregister_job( $job_id );
 			wp_send_json_error( array( 'message' => __( 'Job non trouvé ou expiré.', 'ai-recipe-generator-pro' ) ) );
 		}
 
 		// Exécuter l'étape actuelle
 		$result = $this->execute_job_step( $job, $job_id );
 
-		// Mettre à jour le job
-		set_transient( $job_id, $job, HOUR_IN_SECONDS );
+		// PHASE 5: Refresh TTL à chaque tick (30 min)
+		set_transient( $job_id, $job, 30 * MINUTE_IN_SECONDS );
 
 		// Retourner le résultat
 		wp_send_json_success( $result );
@@ -366,7 +384,12 @@ class ARGP_Ajax {
 		$job_id = isset( $_POST['job_id'] ) ? sanitize_text_field( wp_unslash( $_POST['job_id'] ) ) : '';
 
 		if ( ! empty( $job_id ) ) {
+			// PHASE 5: Unregister avant delete
+			$this->unregister_job( $job_id );
 			delete_transient( $job_id );
+
+			// PHASE 5: Log
+			ARGP_Settings::log( "Job {$job_id} annulé par l'utilisateur", 'info' );
 		}
 
 		wp_send_json_success( array( 'message' => __( 'Génération annulée.', 'ai-recipe-generator-pro' ) ) );
@@ -399,7 +422,7 @@ class ARGP_Ajax {
 		}
 
 		// STEP final: Finaliser
-		return $this->job_step_finalize( $job );
+		return $this->job_step_finalize( $job, $job_id );
 	}
 
 	/**
@@ -623,12 +646,21 @@ class ARGP_Ajax {
 	/**
 	 * STEP final: Finaliser le job
 	 *
-	 * @param array &$job Données du job.
+	 * @param array  &$job    Données du job.
+	 * @param string $job_id  ID du job.
 	 * @return array Résultat final.
 	 */
-	private function job_step_finalize( &$job ) {
+	private function job_step_finalize( &$job, $job_id = '' ) {
 		$post_id = $job['created_post_id'];
 		$edit_link = get_edit_post_link( $post_id, 'raw' );
+
+		// PHASE 5: Unregister job terminé
+		if ( ! empty( $job_id ) ) {
+			$this->unregister_job( $job_id );
+
+			// PHASE 5: Log
+			ARGP_Settings::log( "Job {$job_id} terminé - Post ID: {$post_id}", 'info' );
+		}
 
 		return array(
 			'done'      => true,
@@ -652,7 +684,8 @@ class ARGP_Ajax {
 	 * @return array|WP_Error JSON structuré ou erreur.
 	 */
 	private function openai_generate_recipes( $subject, $count ) {
-		$api_key = ARGP_Settings::get_option( 'openai_api_key', '' );
+		// PHASE 5: Utiliser clé déchiffrée
+		$api_key = ARGP_Settings::get_decrypted_key( 'openai_api_key' );
 
 		$system_prompt = "Tu es un chef cuisinier et rédacteur culinaire professionnel. " .
 			"Tu génères du contenu pour un blog de recettes grand public en français. " .
@@ -755,7 +788,8 @@ class ARGP_Ajax {
 	 * @return array|WP_Error Données de prédiction ou erreur.
 	 */
 	private function replicate_start_prediction( $prompt ) {
-		$api_key = ARGP_Settings::get_option( 'replicate_api_key', '' );
+		// PHASE 5: Utiliser clé déchiffrée
+		$api_key = ARGP_Settings::get_decrypted_key( 'replicate_api_key' );
 
 		if ( empty( $api_key ) ) {
 			return new WP_Error( 'replicate_error', 'Clé API Replicate manquante' );
@@ -802,7 +836,8 @@ class ARGP_Ajax {
 	 * @return array|WP_Error État de la prédiction ou erreur.
 	 */
 	private function replicate_check_prediction( $prediction_id ) {
-		$api_key = ARGP_Settings::get_option( 'replicate_api_key', '' );
+		// PHASE 5: Utiliser clé déchiffrée
+		$api_key = ARGP_Settings::get_decrypted_key( 'replicate_api_key' );
 
 		$response = wp_remote_get(
 			'https://api.replicate.com/v1/predictions/' . $prediction_id,
@@ -841,6 +876,14 @@ class ARGP_Ajax {
 	 * @return int|WP_Error ID de l'attachment ou erreur.
 	 */
 	private function sideload_image( $image_url, $post_id, $description = '' ) {
+		// PHASE 5: Validation SSRF
+		if ( ! $this->validate_image_url( $image_url ) ) {
+			return new WP_Error(
+				'invalid_url',
+				__( 'URL d\'image non autorisée pour des raisons de sécurité.', 'ai-recipe-generator-pro' )
+			);
+		}
+
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		require_once ABSPATH . 'wp-admin/includes/media.php';
 		require_once ABSPATH . 'wp-admin/includes/image.php';
@@ -848,6 +891,8 @@ class ARGP_Ajax {
 		$tmp = download_url( $image_url );
 
 		if ( is_wp_error( $tmp ) ) {
+			// PHASE 5: Log
+			ARGP_Settings::log( "Erreur download_url: " . $tmp->get_error_message(), 'error' );
 			return $tmp;
 		}
 
@@ -860,8 +905,13 @@ class ARGP_Ajax {
 
 		if ( is_wp_error( $attachment_id ) ) {
 			@unlink( $file_array['tmp_name'] );
+			// PHASE 5: Log
+			ARGP_Settings::log( "Erreur sideload: " . $attachment_id->get_error_message(), 'error' );
 			return $attachment_id;
 		}
+
+		// PHASE 5: Log succès
+		ARGP_Settings::log( "Image {$attachment_id} téléchargée avec succès pour post {$post_id}", 'info' );
 
 		return $attachment_id;
 	}
@@ -952,7 +1002,8 @@ class ARGP_Ajax {
 	 * @return array|WP_Error Liste de 3 titres ou WP_Error en cas d'erreur.
 	 */
 	private function openai_suggest_titles( $subject, $recent_titles, $manual_titles ) {
-		$api_key = ARGP_Settings::get_option( 'openai_api_key', '' );
+		// PHASE 5: Utiliser clé déchiffrée
+		$api_key = ARGP_Settings::get_decrypted_key( 'openai_api_key' );
 
 		$system_prompt = "Tu es un rédacteur SEO spécialisé dans le domaine culinaire et les blogs food. " .
 			"Tu génères des titres d'articles de blog attractifs, clairs et optimisés pour le référencement. " .
@@ -1144,5 +1195,209 @@ class ARGP_Ajax {
 		$title = preg_replace( '/\s+/', ' ', $title );
 		
 		return $title;
+	}
+
+	/* ========================================
+	   PHASE 5: RATE LIMITING
+	   ======================================== */
+
+	/**
+	 * Vérifie le rate limit de l'utilisateur
+	 */
+	private function check_rate_limit() {
+		$user_id = get_current_user_id();
+
+		// Vérifier cooldown (30s entre générations)
+		$last_start = get_transient( 'argp_user_' . $user_id . '_last_start' );
+
+		if ( false !== $last_start && ( time() - $last_start ) < 30 ) {
+			$wait = 30 - ( time() - $last_start );
+			wp_send_json_error(
+				array(
+					'message' => sprintf(
+						/* translators: %d: Nombre de secondes */
+						__( 'Veuillez patienter %d secondes avant de relancer une génération.', 'ai-recipe-generator-pro' ),
+						$wait
+					),
+				)
+			);
+		}
+
+		// Vérifier nombre de jobs actifs (max 2)
+		$active_jobs = get_transient( 'argp_user_' . $user_id . '_jobs' );
+
+		if ( false === $active_jobs ) {
+			$active_jobs = array();
+		}
+
+		// Nettoyer les jobs expirés
+		$active_jobs = array_filter(
+			$active_jobs,
+			function( $job_id ) {
+				return false !== get_transient( $job_id );
+			}
+		);
+
+		if ( count( $active_jobs ) >= 2 ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Vous avez déjà 2 générations en cours. Veuillez attendre qu\'elles se terminent ou les annuler.', 'ai-recipe-generator-pro' ),
+				)
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Enregistre le démarrage d'un job
+	 *
+	 * @param string $job_id ID du job.
+	 */
+	private function register_job_start( $job_id ) {
+		$user_id = get_current_user_id();
+
+		// Enregistrer timestamp
+		set_transient( 'argp_user_' . $user_id . '_last_start', time(), HOUR_IN_SECONDS );
+
+		// Ajouter à la liste des jobs actifs
+		$active_jobs = get_transient( 'argp_user_' . $user_id . '_jobs' );
+
+		if ( false === $active_jobs ) {
+			$active_jobs = array();
+		}
+
+		$active_jobs[] = $job_id;
+
+		set_transient( 'argp_user_' . $user_id . '_jobs', $active_jobs, HOUR_IN_SECONDS );
+	}
+
+	/**
+	 * Désenregistre un job terminé
+	 *
+	 * @param string $job_id ID du job.
+	 */
+	private function unregister_job( $job_id ) {
+		$user_id = get_current_user_id();
+
+		$active_jobs = get_transient( 'argp_user_' . $user_id . '_jobs' );
+
+		if ( false !== $active_jobs ) {
+			$active_jobs = array_values(
+				array_filter(
+					$active_jobs,
+					function( $id ) use ( $job_id ) {
+						return $id !== $job_id;
+					}
+				)
+			);
+
+			set_transient( 'argp_user_' . $user_id . '_jobs', $active_jobs, HOUR_IN_SECONDS );
+		}
+	}
+
+	/* ========================================
+	   PHASE 5: REPRISE DE JOB
+	   ======================================== */
+
+	/**
+	 * Handler AJAX : Récupère le job en cours de l'utilisateur
+	 */
+	public function handle_get_current_job() {
+		$this->check_ajax_security();
+
+		$user_id = get_current_user_id();
+
+		// Récupérer la liste des jobs actifs
+		$active_jobs = get_transient( 'argp_user_' . $user_id . '_jobs' );
+
+		if ( false === $active_jobs || empty( $active_jobs ) ) {
+			wp_send_json_success( array( 'has_job' => false ) );
+		}
+
+		// Prendre le premier job actif
+		foreach ( $active_jobs as $job_id ) {
+			$job = get_transient( $job_id );
+
+			if ( false !== $job ) {
+				wp_send_json_success(
+					array(
+						'has_job' => true,
+						'job_id'  => $job_id,
+						'step'    => $job['step'],
+						'subject' => $job['subject'],
+						'count'   => $job['count'],
+					)
+				);
+			}
+		}
+
+		wp_send_json_success( array( 'has_job' => false ) );
+	}
+
+	/* ========================================
+	   PHASE 5: PROTECTION SSRF
+	   ======================================== */
+
+	/**
+	 * Valide une URL d'image Replicate (protection SSRF)
+	 *
+	 * @param string $url URL à valider.
+	 * @return bool True si URL valide et sûre.
+	 */
+	private function validate_image_url( $url ) {
+		// Vérifier que c'est une URL valide
+		if ( ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
+			return false;
+		}
+
+		// Parser l'URL
+		$parsed = wp_parse_url( $url );
+
+		// Vérifier protocole HTTPS obligatoire
+		if ( ! isset( $parsed['scheme'] ) || 'https' !== $parsed['scheme'] ) {
+			return false;
+		}
+
+		// Whitelist des domaines Replicate autorisés
+		$allowed_hosts = array(
+			'replicate.delivery',
+			'replicate.com',
+			'pbxt.replicate.delivery',
+			'cdn.replicate.com',
+		);
+
+		$host = isset( $parsed['host'] ) ? strtolower( $parsed['host'] ) : '';
+
+		if ( empty( $host ) ) {
+			return false;
+		}
+
+		// Vérifier si le host est dans la whitelist ou sous-domaine
+		$allowed = false;
+		foreach ( $allowed_hosts as $allowed_host ) {
+			if ( $host === $allowed_host || str_ends_with( $host, '.' . $allowed_host ) ) {
+				$allowed = true;
+				break;
+			}
+		}
+
+		if ( ! $allowed ) {
+			ARGP_Settings::log( "URL refusée (domaine non autorisé): {$url}", 'warning' );
+			return false;
+		}
+
+		// Vérifier que ce n'est pas une IP locale/privée
+		$ip = gethostbyname( $host );
+
+		// Si l'IP est identique au host, c'est déjà une IP
+		if ( $ip !== $host && filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+			if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) === false ) {
+				ARGP_Settings::log( "URL refusée (IP privée/réservée): {$url}", 'warning' );
+				return false;
+			}
+		}
+
+		return true;
 	}
 }

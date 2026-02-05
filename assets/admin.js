@@ -21,13 +21,15 @@
 		 */
 		tickInterval: null,
 
-		/**
-		 * Initialisation
-		 */
-		init: function() {
-			this.bindEvents();
-			this.initToggleVisibility();
-		},
+	/**
+	 * Initialisation
+	 */
+	init: function() {
+		this.bindEvents();
+		this.initToggleVisibility();
+		// PHASE 5: Vérifier s'il y a un job en cours à reprendre
+		this.checkForExistingJob();
+	},
 
 		/**
 		 * Lie les événements
@@ -277,6 +279,10 @@
 				return;
 			}
 
+			// PHASE 5: Désactiver le bouton submit avec aria-busy
+			const $submitBtn = $('#argp-generate-submit');
+			$submitBtn.prop('disabled', true).attr('aria-busy', 'true');
+
 			// Désactiver le formulaire
 			$('#argp-generate-form').hide();
 
@@ -286,7 +292,7 @@
 
 			// Réinitialiser la progression
 			ARGPAdmin.updateProgress(0, 'Initialisation...');
-			$('#argp-progress-logs').empty();
+			$('#argp-progress-logs').empty().attr('aria-live', 'polite');
 
 			// Démarrer la génération
 			ARGPAdmin.startGeneration(subject, count, title, status);
@@ -402,9 +408,14 @@
 		 * @param {string} message Message de statut
 		 */
 		updateProgress: function(percent, message) {
+			// PHASE 5: Clamp pourcentage 0-100
+			percent = Math.max(0, Math.min(100, percent));
+
 			$('#argp-progress-bar-fill').css('width', percent + '%');
 			$('#argp-progress-percent').text(Math.round(percent) + '%');
-			$('#argp-progress-status').text(message);
+			
+			// PHASE 5: Échapper le message pour XSS
+			$('#argp-progress-status').text(ARGPAdmin.escapeHtml(message));
 		},
 
 		/**
@@ -418,17 +429,23 @@
 			const timestamp = new Date().toLocaleTimeString();
 			const iconClass = type === 'success' ? 'dashicons-yes' : (type === 'error' ? 'dashicons-no' : 'dashicons-info');
 			
+			// PHASE 5: Échapper le message pour XSS
 			const $log = $('<div class="argp-log-entry argp-log-' + type + '">' +
 				'<span class="dashicons ' + iconClass + '"></span>' +
-				'<span class="argp-log-time">' + timestamp + '</span>' +
+				'<span class="argp-log-time">' + ARGPAdmin.escapeHtml(timestamp) + '</span>' +
 				'<span class="argp-log-message">' + ARGPAdmin.escapeHtml(message) + '</span>' +
 				'</div>');
 
-			$('#argp-progress-logs').append($log);
+			// PHASE 5: Ajouter aria-live pour accessibilité
+			const $logsContainer = $('#argp-progress-logs');
+			if (!$logsContainer.attr('aria-live')) {
+				$logsContainer.attr('aria-live', 'polite');
+			}
+
+			$logsContainer.append($log);
 
 			// Scroll automatique vers le bas
-			const $logs = $('#argp-progress-logs');
-			$logs.scrollTop($logs[0].scrollHeight);
+			$logsContainer.scrollTop($logsContainer[0].scrollHeight);
 		},
 
 		/**
@@ -551,6 +568,60 @@
 		},
 
 		/* ========================================
+		   PHASE 5: REPRISE DE JOB
+		   ======================================== */
+
+		/**
+		 * Vérifie s'il y a un job en cours à reprendre
+		 */
+		checkForExistingJob: function() {
+			// Ne check que sur la page Générer
+			if ($('#argp-generate-form').length === 0) {
+				return;
+			}
+
+			$.ajax({
+				url: argpAdmin.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'argp_get_current_job',
+					nonce: argpAdmin.nonce
+				},
+				success: function(response) {
+					if (response.success && response.data.has_job) {
+						// Il y a un job en cours - proposer reprise
+						const data = response.data;
+						const resumeMsg = 'Une génération est en cours (' + data.count + ' recette(s) sur "' + 
+							data.subject + '"). Voulez-vous reprendre ?';
+
+						if (confirm(resumeMsg)) {
+							// Reprendre le job
+							ARGPAdmin.showNotice('info', 'Reprise de la génération en cours...');
+							
+							// Masquer formulaire, afficher progression
+							$('#argp-generate-form').hide();
+							$('#argp-progress-container').show();
+							$('#argp-results-container').hide();
+
+							// Restaurer job ID
+							ARGPAdmin.currentJobId = data.job_id;
+
+							// Démarrer tick loop
+							ARGPAdmin.startTickLoop();
+						} else {
+							// Annuler l'ancien job
+							ARGPAdmin.showNotice('info', 'Ancien job ignoré. Vous pouvez démarrer une nouvelle génération.');
+						}
+					}
+				},
+				error: function() {
+					// Silencieux - pas grave si échec
+					console.log('Vérification job existant échouée (normal si aucun job)');
+				}
+			});
+		},
+
+		/* ========================================
 		   UTILITAIRES
 		   ======================================== */
 
@@ -561,7 +632,7 @@
 		 * @param {string} message    Message d'erreur
 		 */
 		showError: function($container, message) {
-			const html = '<div class="notice notice-error inline"><p>' + message + '</p></div>';
+			const html = '<div class="notice notice-error inline"><p>' + ARGPAdmin.escapeHtml(message) + '</p></div>';
 			$container.html(html).fadeIn();
 		},
 
