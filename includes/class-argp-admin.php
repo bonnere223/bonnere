@@ -189,7 +189,7 @@ class ARGP_Admin {
 								<td>
 									<select id="argp_count" name="argp_count">
 										<?php for ( $i = 1; $i <= 10; $i++ ) : ?>
-											<option value="<?php echo esc_attr( $i ); ?>" <?php selected( $i, 5 ); ?>>
+											<option value="<?php echo esc_attr( $i ); ?>" <?php selected( $i, 3 ); ?>>
 												<?php echo esc_html( $i ); ?>
 											</option>
 										<?php endfor; ?>
@@ -204,7 +204,7 @@ class ARGP_Admin {
 							<tr>
 								<th scope="row">
 									<label for="argp_title">
-										<?php esc_html_e( 'Titre', 'ai-recipe-generator-pro' ); ?>
+										<?php esc_html_e( 'Titre de l\'article', 'ai-recipe-generator-pro' ); ?>
 									</label>
 								</th>
 								<td>
@@ -214,7 +214,7 @@ class ARGP_Admin {
 											id="argp_title" 
 											name="argp_title" 
 											class="regular-text" 
-											placeholder="<?php esc_attr_e( 'Laissez vide pour générer automatiquement', 'ai-recipe-generator-pro' ); ?>"
+											placeholder="<?php esc_attr_e( 'Laissez vide pour utiliser le sujet', 'ai-recipe-generator-pro' ); ?>"
 										/>
 										<button 
 											type="button" 
@@ -225,7 +225,7 @@ class ARGP_Admin {
 										</button>
 									</div>
 									<p class="description">
-										<?php esc_html_e( 'Titre de l\'article. Cliquez sur "Suggérer" pour obtenir des propositions basées sur vos articles récents.', 'ai-recipe-generator-pro' ); ?>
+										<?php esc_html_e( 'Titre de l\'article WordPress. Cliquez sur "Suggérer" pour obtenir des propositions basées sur vos articles récents.', 'ai-recipe-generator-pro' ); ?>
 									</p>
 									
 									<!-- Zone de suggestions -->
@@ -239,19 +239,74 @@ class ARGP_Admin {
 									</div>
 								</td>
 							</tr>
+
+							<!-- Statut de l'article (NOUVEAU PHASE 3) -->
+							<tr>
+								<th scope="row">
+									<label for="argp_status">
+										<?php esc_html_e( 'Statut de l\'article', 'ai-recipe-generator-pro' ); ?>
+									</label>
+								</th>
+								<td>
+									<select id="argp_status" name="argp_status">
+										<option value="draft" selected>
+											<?php esc_html_e( 'Brouillon (draft)', 'ai-recipe-generator-pro' ); ?>
+										</option>
+										<option value="publish">
+											<?php esc_html_e( 'Publié (publish)', 'ai-recipe-generator-pro' ); ?>
+										</option>
+									</select>
+									<p class="description">
+										<?php esc_html_e( 'Statut de publication de l\'article généré. Recommandation : commencez par "Brouillon" pour relire avant publication.', 'ai-recipe-generator-pro' ); ?>
+									</p>
+								</td>
+							</tr>
 						</tbody>
 					</table>
 
 					<p class="submit">
 						<button type="submit" class="button button-primary button-large" id="argp-generate-submit">
-							<?php esc_html_e( 'Générer les recettes', 'ai-recipe-generator-pro' ); ?>
+							<span class="dashicons dashicons-admin-post" style="margin-top: 4px;"></span>
+							<?php esc_html_e( 'Générer l\'article complet', 'ai-recipe-generator-pro' ); ?>
 						</button>
 					</p>
 				</form>
 
-				<!-- TODO Phase 3-5: Zone de résultats avec progression, preview des recettes générées, boutons de publication -->
+				<!-- PHASE 3: Zone de progression -->
+				<div id="argp-progress-container" class="argp-progress-container" style="display: none;">
+					<h2><?php esc_html_e( 'Génération en cours...', 'ai-recipe-generator-pro' ); ?></h2>
+					
+					<!-- Barre de progression -->
+					<div class="argp-progress-bar-wrapper">
+						<div class="argp-progress-bar">
+							<div id="argp-progress-bar-fill" class="argp-progress-bar-fill" style="width: 0%;">
+								<span id="argp-progress-percent" class="argp-progress-percent">0%</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Message de statut -->
+					<div id="argp-progress-status" class="argp-progress-status">
+						<?php esc_html_e( 'Initialisation...', 'ai-recipe-generator-pro' ); ?>
+					</div>
+
+					<!-- Logs détaillés -->
+					<div id="argp-progress-logs" class="argp-progress-logs">
+						<!-- Les logs seront ajoutés ici par JS -->
+					</div>
+
+					<!-- Bouton d'annulation -->
+					<p class="submit">
+						<button type="button" id="argp-cancel-generation" class="button button-secondary">
+							<span class="dashicons dashicons-no" style="margin-top: 4px;"></span>
+							<?php esc_html_e( 'Annuler', 'ai-recipe-generator-pro' ); ?>
+						</button>
+					</p>
+				</div>
+
+				<!-- PHASE 3: Zone de résultats -->
 				<div id="argp-results-container" class="argp-results-container" style="display: none;">
-					<h2><?php esc_html_e( 'Résultats', 'ai-recipe-generator-pro' ); ?></h2>
+					<h2><?php esc_html_e( 'Génération terminée !', 'ai-recipe-generator-pro' ); ?></h2>
 					<div id="argp-results-content">
 						<!-- Résultats AJAX ici -->
 					</div>
