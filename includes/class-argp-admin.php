@@ -48,6 +48,7 @@ class ARGP_Admin {
 	private function __construct() {
 		add_action( 'admin_menu', array( $this, 'register_menus' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'admin_post_argp_clear_cache', array( $this, 'handle_clear_cache' ) );
 	}
 
 	/**
@@ -83,6 +84,16 @@ class ARGP_Admin {
 			'manage_options',
 			'argp-settings',
 			array( $this, 'render_settings_page' )
+		);
+
+		// Sous-menu : Outils (Cache et maintenance)
+		add_submenu_page(
+			$this->menu_slug,
+			__( 'Outils & Maintenance', 'ai-recipe-generator-pro' ),
+			__( 'Outils', 'ai-recipe-generator-pro' ),
+			'manage_options',
+			'argp-tools',
+			array( $this, 'render_tools_page' )
 		);
 	}
 
@@ -481,5 +492,200 @@ class ARGP_Admin {
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Affiche la page "Outils & Maintenance"
+	 */
+	public function render_tools_page() {
+		// Vérifier les permissions
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Vous n\'avez pas les permissions nécessaires.', 'ai-recipe-generator-pro' ) );
+		}
+
+		// Afficher message de confirmation si cache vidé
+		if ( isset( $_GET['cache_cleared'] ) && '1' === $_GET['cache_cleared'] ) {
+			echo '<div class="notice notice-success is-dismissible"><p><strong>' . esc_html__( 'Cache vidé avec succès !', 'ai-recipe-generator-pro' ) . '</strong> ' . esc_html__( 'Tous les transients et fichiers temporaires ont été supprimés.', 'ai-recipe-generator-pro' ) . '</p></div>';
+		}
+
+		$clear_cache_url = add_query_arg(
+			array(
+				'action'   => 'argp_clear_cache',
+				'_wpnonce' => wp_create_nonce( 'argp_clear_cache' ),
+			),
+			admin_url( 'admin-post.php' )
+		);
+
+		?>
+		<div class="wrap argp-admin-page argp-premium-ui">
+			<h1 class="argp-page-title">
+				<span class="dashicons dashicons-admin-tools"></span>
+				<?php echo esc_html( get_admin_page_title() ); ?>
+			</h1>
+			<p class="argp-page-subtitle">
+				<?php esc_html_e( 'Outils de maintenance et nettoyage du plugin', 'ai-recipe-generator-pro' ); ?>
+			</p>
+
+			<div class="argp-layout-wrapper" style="grid-template-columns: 1fr;">
+				<!-- CARTE: NETTOYAGE CACHE -->
+				<div class="argp-card">
+					<div class="argp-card-header">
+						<h2><?php esc_html_e( '🧹 Nettoyage du cache', 'ai-recipe-generator-pro' ); ?></h2>
+						<p class="argp-card-subtitle"><?php esc_html_e( 'Utilisez cet outil après une mise à jour du plugin ou si vous rencontrez des problèmes', 'ai-recipe-generator-pro' ); ?></p>
+					</div>
+					<div class="argp-card-body">
+						<p><?php esc_html_e( 'Cette action va supprimer :', 'ai-recipe-generator-pro' ); ?></p>
+						<ul style="margin-left: 20px; margin-bottom: 20px;">
+							<li><?php esc_html_e( 'Tous les transients du plugin (jobs, rate limiting)', 'ai-recipe-generator-pro' ); ?></li>
+							<li><?php esc_html_e( 'Tous les fichiers temporaires (ZIP, images)', 'ai-recipe-generator-pro' ); ?></li>
+							<li><?php esc_html_e( 'Le cache des suggestions de titres', 'ai-recipe-generator-pro' ); ?></li>
+						</ul>
+						<p><strong><?php esc_html_e( '⚠️ Note :', 'ai-recipe-generator-pro' ); ?></strong> <?php esc_html_e( 'Les générations en cours seront annulées. Vos réglages et articles ne seront pas affectés.', 'ai-recipe-generator-pro' ); ?></p>
+
+						<p style="margin-top: 30px;">
+							<a href="<?php echo esc_url( $clear_cache_url ); ?>" class="button button-primary button-large" onclick="return confirm('<?php echo esc_js( __( 'Êtes-vous sûr de vouloir vider le cache ? Les générations en cours seront annulées.', 'ai-recipe-generator-pro' ) ); ?>');">
+								<span class="dashicons dashicons-trash" style="margin-top: 4px;"></span>
+								<?php esc_html_e( 'Vider le cache maintenant', 'ai-recipe-generator-pro' ); ?>
+							</a>
+						</p>
+					</div>
+				</div>
+
+				<!-- CARTE: INFORMATIONS VERSION -->
+				<div class="argp-card">
+					<div class="argp-card-header">
+						<h2><?php esc_html_e( 'ℹ️ Informations du plugin', 'ai-recipe-generator-pro' ); ?></h2>
+					</div>
+					<div class="argp-card-body">
+						<table class="widefat">
+							<tbody>
+								<tr>
+									<th style="width: 200px;"><?php esc_html_e( 'Version', 'ai-recipe-generator-pro' ); ?></th>
+									<td><strong><?php echo esc_html( ARGP_VERSION ); ?></strong></td>
+								</tr>
+								<tr>
+									<th><?php esc_html_e( 'Dossier plugin', 'ai-recipe-generator-pro' ); ?></th>
+									<td><code><?php echo esc_html( ARGP_PLUGIN_DIR ); ?></code></td>
+								</tr>
+								<tr>
+									<th><?php esc_html_e( 'Transients actifs', 'ai-recipe-generator-pro' ); ?></th>
+									<td><?php echo esc_html( $this->count_plugin_transients() ); ?></td>
+								</tr>
+								<tr>
+									<th><?php esc_html_e( 'Fichiers temporaires', 'ai-recipe-generator-pro' ); ?></th>
+									<td><?php echo esc_html( $this->count_temp_files() ); ?></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+
+				<!-- CARTE: APRÈS MISE À JOUR -->
+				<div class="argp-card" style="border-left: 4px solid #f0b849; background: #fffbf0;">
+					<div class="argp-card-header">
+						<h2><?php esc_html_e( '🔄 Après une mise à jour', 'ai-recipe-generator-pro' ); ?></h2>
+					</div>
+					<div class="argp-card-body">
+						<p><strong><?php esc_html_e( 'Recommandation :', 'ai-recipe-generator-pro' ); ?></strong></p>
+						<ol style="margin-left: 20px;">
+							<li><?php esc_html_e( 'Désactiver l\'ancienne version', 'ai-recipe-generator-pro' ); ?></li>
+							<li><?php esc_html_e( 'Supprimer l\'ancienne extension', 'ai-recipe-generator-pro' ); ?></li>
+							<li><?php esc_html_e( 'Uploader et activer la nouvelle version', 'ai-recipe-generator-pro' ); ?></li>
+							<li><strong><?php esc_html_e( 'Vider le cache (bouton ci-dessus)', 'ai-recipe-generator-pro' ); ?></strong></li>
+							<li><?php esc_html_e( 'Tester avec 1 recette en mode draft', 'ai-recipe-generator-pro' ); ?></li>
+						</ol>
+					</div>
+				</div>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Handler : Vider le cache du plugin
+	 */
+	public function handle_clear_cache() {
+		// Vérifier le nonce
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'argp_clear_cache' ) ) {
+			wp_die( esc_html__( 'Erreur de sécurité.', 'ai-recipe-generator-pro' ) );
+		}
+
+		// Vérifier les permissions
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Vous n\'avez pas les permissions nécessaires.', 'ai-recipe-generator-pro' ) );
+		}
+
+		global $wpdb;
+
+		// Supprimer tous les transients du plugin
+		$wpdb->query(
+			"DELETE FROM {$wpdb->options} 
+			WHERE option_name LIKE '_transient_argp_%' 
+			OR option_name LIKE '_transient_timeout_argp_%'"
+		);
+
+		// Nettoyer les fichiers temporaires
+		$temp_dir = get_temp_dir();
+		$patterns = array( 'argp-images-*', 'argp-recettes-*', 'argp-*' );
+
+		foreach ( $patterns as $pattern ) {
+			$files = glob( $temp_dir . $pattern );
+			if ( is_array( $files ) ) {
+				foreach ( $files as $file ) {
+					if ( is_file( $file ) ) {
+						@unlink( $file );
+					}
+				}
+			}
+		}
+
+		// Rediriger vers la page Outils avec message de succès
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'          => 'argp-tools',
+					'cache_cleared' => '1',
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Compte les transients actifs du plugin
+	 *
+	 * @return int Nombre de transients.
+	 */
+	private function count_plugin_transients() {
+		global $wpdb;
+
+		$count = $wpdb->get_var(
+			"SELECT COUNT(*) FROM {$wpdb->options} 
+			WHERE option_name LIKE '_transient_argp_%' 
+			AND option_name NOT LIKE '_transient_timeout_%'"
+		);
+
+		return (int) $count;
+	}
+
+	/**
+	 * Compte les fichiers temporaires du plugin
+	 *
+	 * @return int Nombre de fichiers.
+	 */
+	private function count_temp_files() {
+		$temp_dir = get_temp_dir();
+		$count    = 0;
+		$patterns = array( 'argp-images-*', 'argp-recettes-*' );
+
+		foreach ( $patterns as $pattern ) {
+			$files = glob( $temp_dir . $pattern );
+			if ( is_array( $files ) ) {
+				$count += count( $files );
+			}
+		}
+
+		return $count;
 	}
 }
