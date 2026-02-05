@@ -1,0 +1,21 @@
+{
+  "name": "AI Recipe Generator Pro",
+  "version": "2.0.1",
+  "download_url": "https://github.com/bonnere223/bonnere/archive/refs/tags/v2.0.1.zip",
+  "requires_wp": "5.8",
+  "tested_up_to": "6.4",
+  "requires_php": "7.4",
+  "author": "Votre Nom",
+  "homepage": "https://github.com/bonnere223/bonnere",
+  "description": "<p>Plugin WordPress professionnel pour générer des articles de recettes avec l'intelligence artificielle (OpenAI + Replicate).</p><p><strong>Fonctionnalités :</strong></p><ul><li>Génération automatique de recettes (texte + images)</li><li>Interface SaaS moderne</li><li>Estimation temps réel (coût + durée)</li><li>Exports ZIP/TXT</li><li>Sécurité niveau production</li></ul>",
+  "changelog": "<h4>Version 2.0.1</h4><ul><li><strong>🐛 Bugfix critique :</strong> Correction du throttling Replicate (taux réussite 100%)</li><li><strong>✨ Nouveau :</strong> Page Outils avec nettoyage cache</li><li><strong>⚡ Performance :</strong> Séquençage intelligent des appels API (12s entre images)</li><li><strong>🎨 UX :</strong> Messages d'erreur clairs et rassurants</li></ul><h4>Version 2.0.0</h4><ul><li><strong>🎨 Refonte UX Premium :</strong> Interface SaaS moderne</li><li><strong>📊 Sidebar estimation :</strong> Coût et temps en temps réel</li><li><strong>🤖 Suggestion auto :</strong> Titre pré-rempli au chargement</li><li><strong>🌟 Nouveau thème :</strong> Génération de thèmes inédits</li><li><strong>🔍 Détection auto :</strong> Nombre de recettes depuis titre</li></ul><h4>Version 1.5.0</h4><ul><li><strong>🔒 Sécurité :</strong> Chiffrement clés API (AES-256)</li><li><strong>⚡ Performance :</strong> Rate limiting + Reprise auto</li><li><strong>🛡️ Protection :</strong> SSRF + Validations renforcées</li></ul>",
+  "last_updated": "2026-02-05",
+  "icons": {
+    "1x": "https://ps.w.org/akismet/assets/icon-128x128.png",
+    "2x": "https://ps.w.org/akismet/assets/icon-256x256.png"
+  },
+  "banners": {
+    "low": "https://ps.w.org/akismet/assets/banner-772x250.png",
+    "high": "https://ps.w.org/akismet/assets/banner-1544x500.png"
+  }
+}

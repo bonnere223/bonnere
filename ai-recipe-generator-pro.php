@@ -69,6 +69,7 @@ class AI_Recipe_Generator_Pro {
 		require_once ARGP_PLUGIN_DIR . 'includes/class-argp-settings.php';
 		require_once ARGP_PLUGIN_DIR . 'includes/class-argp-ajax.php';
 		require_once ARGP_PLUGIN_DIR . 'includes/class-argp-export.php';
+		require_once ARGP_PLUGIN_DIR . 'includes/class-argp-updater.php';
 	}
 
 	/**
@@ -86,6 +87,9 @@ class AI_Recipe_Generator_Pro {
 
 		// PHASE 5: Hook pour le cron de nettoyage quotidien
 		add_action( 'argp_daily_cleanup', array( $this, 'daily_cleanup' ) );
+
+		// Initialiser le système de mise à jour automatique
+		ARGP_Updater::get_instance();
 
 		// Initialiser les composants admin
 		if ( is_admin() ) {
