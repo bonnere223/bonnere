@@ -207,88 +207,314 @@ class ARGP_Ajax {
 	public function handle_suggest_titles() {
 		$this->check_ajax_security();
 
-		// Récupérer le sujet (optionnel pour le contexte)
+		// Récupérer et valider le sujet
 		$subject = isset( $_POST['subject'] ) ? sanitize_text_field( wp_unslash( $_POST['subject'] ) ) : '';
 
-		// TODO Phase 2 complète : Utiliser les 15 derniers titres du blog + titres manuels
-		// Pour l'instant, on retourne des suggestions factices
+		// Vérifier qu'un sujet est fourni
+		if ( empty( $subject ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Le champ Sujet/Thème est requis pour générer des suggestions.', 'ai-recipe-generator-pro' ),
+				)
+			);
+		}
+
+		// Récupérer la clé API OpenAI
+		$openai_key = ARGP_Settings::get_option( 'openai_api_key', '' );
+		if ( empty( $openai_key ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'La clé API OpenAI n\'est pas configurée. Veuillez la renseigner dans les Réglages.', 'ai-recipe-generator-pro' ),
+				)
+			);
+		}
 
 		// Récupérer les titres manuels configurés
 		$manual_titles_raw = ARGP_Settings::get_option( 'manual_titles', '' );
 		$manual_titles = array_filter( array_map( 'trim', explode( "\n", $manual_titles_raw ) ) );
 
-		// Récupérer les 15 derniers articles du blog
-		$recent_posts = get_posts(
-			array(
-				'numberposts' => 15,
-				'post_status' => 'publish',
-				'post_type'   => 'post',
-			)
-		);
+		// Récupérer les 15 derniers titres du blog
+		$recent_titles = $this->get_recent_post_titles( 15 );
 
-		$recent_titles = array();
-		foreach ( $recent_posts as $post ) {
-			$recent_titles[] = $post->post_title;
+		// Appeler OpenAI pour générer les suggestions
+		$result = $this->openai_suggest_titles( $subject, $recent_titles, $manual_titles );
+
+		// Vérifier si l'appel a réussi
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error(
+				array(
+					'message' => $result->get_error_message(),
+				)
+			);
 		}
 
-		// Combiner les titres
-		$all_titles = array_merge( $manual_titles, $recent_titles );
-
-		// Pour l'instant, générer 3 suggestions basées sur le sujet et les titres existants
-		// TODO Phase 3 : Utiliser OpenAI pour générer de vraies suggestions intelligentes
-		$suggestions = $this->generate_mock_suggestions( $subject, $all_titles );
-
+		// Retourner les suggestions
 		wp_send_json_success(
 			array(
-				'suggestions' => $suggestions,
+				'suggestions' => $result,
 				'context'     => array(
 					'manual_count' => count( $manual_titles ),
 					'recent_count' => count( $recent_titles ),
 					'subject'      => $subject,
 				),
-				'message'     => __( 'Suggestions générées avec succès.', 'ai-recipe-generator-pro' ),
+				'message'     => __( 'Suggestions générées avec succès par OpenAI.', 'ai-recipe-generator-pro' ),
 			)
 		);
 	}
 
 	/**
-	 * Génère des suggestions factices (mock) pour la phase MVP
+	 * Récupère les N derniers titres d'articles publiés
 	 *
-	 * @param string $subject     Sujet fourni par l'utilisateur.
-	 * @param array  $all_titles  Tous les titres disponibles.
-	 * @return array Liste de 3 suggestions.
+	 * @param int $limit Nombre de titres à récupérer (défaut : 15).
+	 * @return array Liste des titres.
 	 */
-	private function generate_mock_suggestions( $subject, $all_titles ) {
-		$suggestions = array();
+	private function get_recent_post_titles( $limit = 15 ) {
+		$recent_posts = get_posts(
+			array(
+				'numberposts' => $limit,
+				'post_status' => 'publish',
+				'post_type'   => 'post',
+				'orderby'     => 'date',
+				'order'       => 'DESC',
+			)
+		);
 
-		// Si un sujet est fourni, créer des suggestions basées dessus
-		if ( ! empty( $subject ) ) {
-			$suggestions[] = sprintf(
-				/* translators: %s: Sujet */
-				__( 'Guide ultime : %s pour débutants', 'ai-recipe-generator-pro' ),
-				$subject
-			);
-			$suggestions[] = sprintf(
-				/* translators: %s: Sujet */
-				__( '10 astuces pour réussir %s', 'ai-recipe-generator-pro' ),
-				$subject
-			);
-			$suggestions[] = sprintf(
-				/* translators: %s: Sujet */
-				__( '%s : tout ce que vous devez savoir', 'ai-recipe-generator-pro' ),
-				ucfirst( $subject )
-			);
-		} else {
-			// Suggestions génériques si pas de sujet
-			$suggestions[] = __( 'Recette facile et rapide pour tous les jours', 'ai-recipe-generator-pro' );
-			$suggestions[] = __( '5 idées de repas sains et délicieux', 'ai-recipe-generator-pro' );
-			$suggestions[] = __( 'Le secret des chefs pour des plats parfaits', 'ai-recipe-generator-pro' );
+		$titles = array();
+		foreach ( $recent_posts as $post ) {
+			$titles[] = $post->post_title;
 		}
 
-		// TODO Phase 3: Remplacer par un vrai appel à OpenAI
-		// Exemple : Utiliser les titres existants comme contexte pour générer des suggestions cohérentes
+		return $titles;
+	}
 
-		return $suggestions;
+	/**
+	 * Appelle OpenAI pour générer des suggestions de titres
+	 *
+	 * @param string $subject        Sujet/Thème fourni par l'utilisateur.
+	 * @param array  $recent_titles  Liste des titres récents du blog.
+	 * @param array  $manual_titles  Liste des titres manuels préférés.
+	 * @return array|WP_Error Liste de 3 titres ou WP_Error en cas d'erreur.
+	 */
+	private function openai_suggest_titles( $subject, $recent_titles, $manual_titles ) {
+		// Récupérer la clé API
+		$api_key = ARGP_Settings::get_option( 'openai_api_key', '' );
+
+		// Construire le prompt système
+		$system_prompt = "Tu es un rédacteur SEO spécialisé dans le domaine culinaire et les blogs food. " .
+			"Tu génères des titres d'articles de blog attractifs, clairs et optimisés pour le référencement. " .
+			"Tes titres sont courts (50-75 caractères maximum), accrocheurs mais honnêtes (pas de clickbait mensonger). " .
+			"Tu respectes le style et le ton des articles existants du blog.";
+
+		// Construire le contexte utilisateur
+		$user_prompt = "Je souhaite créer un article de blog sur le thème suivant : \"{$subject}\".\n\n";
+
+		// Ajouter les titres récents pour le contexte
+		if ( ! empty( $recent_titles ) ) {
+			$user_prompt .= "Voici les 15 derniers titres publiés sur mon blog (pour référence de style et éviter les doublons) :\n";
+			foreach ( $recent_titles as $index => $title ) {
+				$user_prompt .= ( $index + 1 ) . ". {$title}\n";
+			}
+			$user_prompt .= "\n";
+		}
+
+		// Ajouter les titres manuels préférés
+		if ( ! empty( $manual_titles ) ) {
+			$user_prompt .= "Voici des titres que j'aime particulièrement (respecte ce style) :\n";
+			foreach ( $manual_titles as $index => $title ) {
+				$user_prompt .= "- {$title}\n";
+			}
+			$user_prompt .= "\n";
+		}
+
+		// Consignes finales
+		$user_prompt .= "Consignes :\n" .
+			"- Propose exactement 3 titres différents et originaux\n" .
+			"- Chaque titre doit faire entre 50 et 75 caractères maximum\n" .
+			"- Les titres doivent être en français\n" .
+			"- Évite de réutiliser ou de copier les titres existants\n" .
+			"- Les titres doivent être pertinents pour le thème : \"{$subject}\"\n" .
+			"- Réponds UNIQUEMENT avec un objet JSON contenant une clé 'titles' avec un tableau de 3 strings\n\n" .
+			"Format attendu : {\"titles\": [\"Titre 1\", \"Titre 2\", \"Titre 3\"]}";
+
+		// Préparer la requête pour l'API OpenAI
+		$body = array(
+			'model'       => 'gpt-4o',
+			'messages'    => array(
+				array(
+					'role'    => 'system',
+					'content' => $system_prompt,
+				),
+				array(
+					'role'    => 'user',
+					'content' => $user_prompt,
+				),
+			),
+			'temperature' => 0.8,
+			'max_tokens'  => 500,
+			'response_format' => array(
+				'type' => 'json_object',
+			),
+		);
+
+		// Appel à l'API OpenAI
+		$response = wp_remote_post(
+			'https://api.openai.com/v1/chat/completions',
+			array(
+				'timeout' => 30,
+				'headers' => array(
+					'Content-Type'  => 'application/json',
+					'Authorization' => 'Bearer ' . $api_key,
+				),
+				'body'    => wp_json_encode( $body ),
+			)
+		);
+
+		// Vérifier les erreurs réseau
+		if ( is_wp_error( $response ) ) {
+			return new WP_Error(
+				'openai_network_error',
+				sprintf(
+					/* translators: %s: Message d'erreur */
+					__( 'Erreur de connexion à OpenAI : %s', 'ai-recipe-generator-pro' ),
+					$response->get_error_message()
+				)
+			);
+		}
+
+		// Récupérer le code HTTP
+		$http_code = wp_remote_retrieve_response_code( $response );
+
+		// Vérifier le code de réponse
+		if ( $http_code !== 200 ) {
+			$body = wp_remote_retrieve_body( $response );
+			$data = json_decode( $body, true );
+			
+			$error_message = __( 'Erreur inconnue de l\'API OpenAI.', 'ai-recipe-generator-pro' );
+			
+			if ( isset( $data['error']['message'] ) ) {
+				$error_message = $data['error']['message'];
+			}
+
+			// Messages d'erreur spécifiques
+			if ( $http_code === 401 ) {
+				$error_message = __( 'Clé API OpenAI invalide. Vérifiez votre configuration dans les Réglages.', 'ai-recipe-generator-pro' );
+			} elseif ( $http_code === 429 ) {
+				$error_message = __( 'Quota OpenAI dépassé. Vérifiez votre compte OpenAI ou réessayez plus tard.', 'ai-recipe-generator-pro' );
+			} elseif ( $http_code === 500 || $http_code === 503 ) {
+				$error_message = __( 'Les serveurs OpenAI sont temporairement indisponibles. Réessayez dans quelques instants.', 'ai-recipe-generator-pro' );
+			}
+
+			return new WP_Error(
+				'openai_api_error',
+				sprintf(
+					/* translators: 1: Code HTTP, 2: Message d'erreur */
+					__( 'Erreur API OpenAI (code %1$d) : %2$s', 'ai-recipe-generator-pro' ),
+					$http_code,
+					$error_message
+				)
+			);
+		}
+
+		// Décoder la réponse JSON
+		$body = wp_remote_retrieve_body( $response );
+		$data = json_decode( $body, true );
+
+		// Vérifier la structure de la réponse
+		if ( ! isset( $data['choices'][0]['message']['content'] ) ) {
+			return new WP_Error(
+				'openai_invalid_response',
+				__( 'Réponse invalide de l\'API OpenAI : structure inattendue.', 'ai-recipe-generator-pro' )
+			);
+		}
+
+		// Récupérer le contenu JSON de la réponse
+		$content = $data['choices'][0]['message']['content'];
+		$titles_data = json_decode( $content, true );
+
+		// Vérifier que le JSON est valide et contient les titres
+		if ( ! isset( $titles_data['titles'] ) || ! is_array( $titles_data['titles'] ) ) {
+			// Fallback : tenter d'extraire des lignes du texte
+			$titles = $this->extract_titles_fallback( $content );
+			
+			if ( empty( $titles ) ) {
+				return new WP_Error(
+					'openai_parse_error',
+					__( 'Impossible d\'extraire les titres de la réponse OpenAI.', 'ai-recipe-generator-pro' )
+				);
+			}
+			
+			return $titles;
+		}
+
+		// Récupérer les 3 premiers titres
+		$titles = array_slice( $titles_data['titles'], 0, 3 );
+
+		// Vérifier qu'on a bien 3 titres
+		if ( count( $titles ) < 3 ) {
+			return new WP_Error(
+				'openai_insufficient_titles',
+				__( 'OpenAI n\'a pas retourné assez de suggestions (attendu : 3).', 'ai-recipe-generator-pro' )
+			);
+		}
+
+		// Nettoyer les titres (supprimer guillemets, espaces superflus)
+		$titles = array_map( 'trim', $titles );
+		$titles = array_map( array( $this, 'clean_title' ), $titles );
+
+		return $titles;
+	}
+
+	/**
+	 * Fallback : extrait les titres d'un texte si le JSON est invalide
+	 *
+	 * @param string $text Texte contenant potentiellement des titres.
+	 * @return array Liste de titres extraits (max 3).
+	 */
+	private function extract_titles_fallback( $text ) {
+		$titles = array();
+		
+		// Tenter de découper par lignes
+		$lines = explode( "\n", $text );
+		
+		foreach ( $lines as $line ) {
+			$line = trim( $line );
+			
+			// Ignorer les lignes vides ou trop courtes
+			if ( empty( $line ) || strlen( $line ) < 10 ) {
+				continue;
+			}
+			
+			// Nettoyer la ligne (supprimer numéros, tirets, guillemets)
+			$line = preg_replace( '/^[\d\-\.\)\]\*\s]+/', '', $line );
+			$line = trim( $line, ' "\'' );
+			
+			if ( ! empty( $line ) && strlen( $line ) >= 10 ) {
+				$titles[] = $line;
+			}
+			
+			// S'arrêter à 3 titres
+			if ( count( $titles ) >= 3 ) {
+				break;
+			}
+		}
+		
+		return $titles;
+	}
+
+	/**
+	 * Nettoie un titre (supprime guillemets, espaces superflus)
+	 *
+	 * @param string $title Titre à nettoyer.
+	 * @return string Titre nettoyé.
+	 */
+	private function clean_title( $title ) {
+		// Supprimer les guillemets doubles et simples
+		$title = trim( $title, ' "\'' );
+		
+		// Supprimer les espaces multiples
+		$title = preg_replace( '/\s+/', ' ', $title );
+		
+		return $title;
 	}
 
 	/**

@@ -129,46 +129,80 @@
 			$container.html(html).fadeIn();
 		},
 
-		/**
-		 * Suggère des titres (AJAX)
-		 */
-		suggestTitles: function(e) {
-			e.preventDefault();
+	/**
+	 * Suggère des titres (AJAX)
+	 */
+	suggestTitles: function(e) {
+		e.preventDefault();
 
-			const $button = $(this);
-			const $suggestionsContainer = $('#argp-suggestions-container');
-			const $suggestionsList = $('#argp-suggestions-list');
-			const subject = $('#argp_subject').val();
-			const originalText = $button.text();
+		const $button = $(this);
+		const $suggestionsContainer = $('#argp-suggestions-container');
+		const $suggestionsList = $('#argp-suggestions-list');
+		const subject = $('#argp_subject').val().trim();
+		const originalText = $button.text();
 
-			// Désactiver le bouton
-			$button.prop('disabled', true).text(argpAdmin.strings.generating);
+		// Validation : vérifier que le sujet n'est pas vide
+		if (!subject) {
+			ARGPAdmin.showNotice('warning', 'Veuillez renseigner un Sujet/Thème avant de demander des suggestions.');
+			$('#argp_subject').focus();
+			return;
+		}
 
-			// Requête AJAX
-			$.ajax({
-				url: argpAdmin.ajaxUrl,
-				type: 'POST',
-				data: {
-					action: 'argp_suggest_titles',
-					nonce: argpAdmin.nonce,
-					subject: subject
-				},
-				success: function(response) {
-					if (response.success && response.data.suggestions) {
-						ARGPAdmin.displaySuggestions(response.data.suggestions);
-					} else {
-						ARGPAdmin.showError($suggestionsList, response.data.message || argpAdmin.strings.error);
+		// Cacher les anciennes suggestions
+		$suggestionsContainer.hide();
+		$suggestionsList.empty();
+
+		// Désactiver le bouton et afficher l'état de chargement
+		$button.prop('disabled', true).addClass('argp-loading');
+		$button.html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span>' + argpAdmin.strings.generating);
+
+		// Requête AJAX
+		$.ajax({
+			url: argpAdmin.ajaxUrl,
+			type: 'POST',
+			data: {
+				action: 'argp_suggest_titles',
+				nonce: argpAdmin.nonce,
+				subject: subject
+			},
+			success: function(response) {
+				if (response.success && response.data.suggestions) {
+					ARGPAdmin.displaySuggestions(response.data.suggestions);
+					
+					// Message de succès discret
+					if (response.data.context) {
+						const ctx = response.data.context;
+						console.log('Suggestions générées avec:', ctx);
 					}
-				},
-				error: function(xhr, status, error) {
-					ARGPAdmin.showError($suggestionsList, 'Erreur AJAX : ' + error);
-				},
-				complete: function() {
-					// Réactiver le bouton
-					$button.prop('disabled', false).text(originalText);
+				} else {
+					// Erreur retournée par le serveur
+					const errorMsg = response.data && response.data.message 
+						? response.data.message 
+						: 'Erreur lors de la génération des suggestions.';
+					ARGPAdmin.showNotice('error', errorMsg);
+					$suggestionsContainer.hide();
 				}
-			});
-		},
+			},
+			error: function(xhr, status, error) {
+				// Erreur réseau ou timeout
+				let errorMsg = 'Erreur de connexion : ' + error;
+				
+				if (status === 'timeout') {
+					errorMsg = 'La requête a expiré. OpenAI met trop de temps à répondre. Réessayez.';
+				} else if (xhr.status === 0) {
+					errorMsg = 'Impossible de contacter le serveur. Vérifiez votre connexion.';
+				}
+				
+				ARGPAdmin.showNotice('error', errorMsg);
+				$suggestionsContainer.hide();
+			},
+			complete: function() {
+				// Réactiver le bouton et retirer l'état de chargement
+				$button.prop('disabled', false).removeClass('argp-loading');
+				$button.html(originalText);
+			}
+		});
+	},
 
 		/**
 		 * Affiche les suggestions de titres
