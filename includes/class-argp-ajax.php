@@ -298,7 +298,7 @@ class ARGP_Ajax {
 		// PHASE 5: Validations renforcées
 		$subject = substr( $subject, 0, 200 ); // Limite 200 caractères
 		$title   = substr( $title, 0, 200 );
-		$count   = max( 1, min( 10, $count ) ); // Clamp 1-10
+		$count   = max( 1, min( 40, $count ) ); // Clamp 1-40
 
 		// Si titre rempli mais pas sujet, utiliser le titre comme sujet
 		if ( empty( $subject ) && ! empty( $title ) ) {

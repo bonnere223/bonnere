@@ -84,14 +84,14 @@
 			
 			if (matches) {
 				let detectedNumber = parseInt(matches[1], 10);
-				let count = Math.max(1, Math.min(10, detectedNumber)); // Clamp 1-10
+				let count = Math.max(1, Math.min(40, detectedNumber)); // Clamp 1-40
 				
 				ARGPAdmin.detectedCount = count;
 				$('#argp_count').val(count);
 				
 				// Afficher le nombre détecté ET clamped si différent
-				if (detectedNumber > 10) {
-					$('#argp-detected-count-text').html(count + ' recette(s) détectée(s) <em>(limité à 10 max)</em>');
+				if (detectedNumber > 40) {
+					$('#argp-detected-count-text').html(count + ' recette(s) détectée(s) <em>(limité à 40 max)</em>');
 				} else {
 					$('#argp-detected-count-text').text(count + ' recette(s) détectée(s)');
 				}
