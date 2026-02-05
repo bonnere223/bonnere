@@ -347,6 +347,40 @@ class ARGP_Settings {
 			<br>
 			<?php esc_html_e( 'Ces titres seront combinés avec les 15 derniers articles de votre blog pour générer des suggestions pertinentes.', 'ai-recipe-generator-pro' ); ?>
 		</p>
+
+		<!-- Affichage des 15 derniers titres du blog -->
+		<div style="margin-top: 20px; padding: 15px; background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 4px;">
+			<h4 style="margin: 0 0 12px 0; font-size: 14px; color: #1d2327;">
+				<?php esc_html_e( '📚 Titres de votre blog utilisés pour le bouton "Suggérer" :', 'ai-recipe-generator-pro' ); ?>
+			</h4>
+			<p style="margin: 0 0 10px 0; font-size: 13px; color: #646970;">
+				<?php esc_html_e( 'Ces 15 derniers titres publiés sont automatiquement utilisés comme référence pour les suggestions.', 'ai-recipe-generator-pro' ); ?>
+			</p>
+			<?php
+			// Récupérer les 15 derniers articles
+			$recent_posts = get_posts(
+				array(
+					'numberposts' => 15,
+					'post_status' => 'publish',
+					'post_type'   => 'post',
+					'orderby'     => 'date',
+					'order'       => 'DESC',
+				)
+			);
+
+			if ( ! empty( $recent_posts ) ) {
+				echo '<ol style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.8;">';
+				foreach ( $recent_posts as $post ) {
+					echo '<li style="color: #1d2327;">' . esc_html( $post->post_title ) . '</li>';
+				}
+				echo '</ol>';
+			} else {
+				echo '<p style="margin: 0; font-size: 13px; color: #646970; font-style: italic;">';
+				esc_html_e( 'Aucun article publié trouvé. Publiez quelques articles pour améliorer les suggestions.', 'ai-recipe-generator-pro' );
+				echo '</p>';
+			}
+			?>
+		</div>
 		<?php
 	}
 
