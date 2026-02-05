@@ -68,6 +68,7 @@ class AI_Recipe_Generator_Pro {
 		require_once ARGP_PLUGIN_DIR . 'includes/class-argp-admin.php';
 		require_once ARGP_PLUGIN_DIR . 'includes/class-argp-settings.php';
 		require_once ARGP_PLUGIN_DIR . 'includes/class-argp-ajax.php';
+		require_once ARGP_PLUGIN_DIR . 'includes/class-argp-export.php';
 	}
 
 	/**
@@ -88,6 +89,7 @@ class AI_Recipe_Generator_Pro {
 			ARGP_Admin::get_instance();
 			ARGP_Settings::get_instance();
 			ARGP_Ajax::get_instance();
+			ARGP_Export::get_instance();
 		}
 	}
 

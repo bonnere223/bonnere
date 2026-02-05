@@ -4,9 +4,9 @@
 
 Plugin WordPress professionnel pour générer des recettes intelligentes avec OpenAI et Replicate, puis les publier automatiquement.
 
-## ✅ Statut : Phase 3 Complète ⭐
+## ✅ Statut : Phase 4 Complète 🚀
 
-Le plugin est maintenant pleinement fonctionnel avec génération complète d'articles (texte + images) !
+Le plugin est complet avec génération d'articles + exports (ZIP & TXT) !
 
 ## 📦 Contenu du dépôt
 
@@ -79,6 +79,31 @@ Le plugin est maintenant pleinement fonctionnel avec génération complète d'ar
   - Affichage des erreurs warnings
 - **Système de tick** : Polling AJAX toutes les 2s
 - **Sécurité renforcée** : Nonces, capabilities, transient avec expiration
+
+### Phase 4 : Exports (ZIP & TXT) ✅ 🚀
+- **Metabox sur écran d'édition** :
+  - Sidebar droite avec 2 boutons
+  - Design épuré avec icônes
+  - Messages info et warnings
+- **Export ZIP des images** :
+  - Extraction intelligente des images (wp-image-* + fallback URL)
+  - Renommage automatique : recette-1.jpg, recette-2.jpg...
+  - Support ZipArchive + fallback PclZip
+  - Streaming sécurisé (pas de fichiers publics)
+- **Export TXT des recettes** :
+  - Extraction via DOMDocument + fallback regex
+  - Format propre : nom en majuscules + instructions numérotées
+  - Sans HTML parasite
+  - Encodage UTF-8
+- **Sécurité** :
+  - Nonces uniques par post
+  - Permissions edit_post vérifiées
+  - Fichiers temporaires nettoyés
+  - Streaming direct avec exit
+- **Gestion d'erreurs** :
+  - Messages clairs si aucune image/recette
+  - Fallback automatique si ZipArchive absent
+  - Validation complète des inputs
 
 ## 🔒 Sécurité
 

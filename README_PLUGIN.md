@@ -139,6 +139,67 @@ Approximatif (dépend des API) :
 - **Timeout OpenAI** : Réessayez après quelques minutes
 - **Quota dépassé** : Vérifiez vos crédits sur OpenAI/Replicate
 
+### Exports des articles (Phase 4) 🚀
+
+Une fois votre article généré, vous pouvez exporter les images et les recettes.
+
+#### Accès aux exports
+
+1. **Ouvrir l'article** : Cliquez sur "Modifier l'article" dans les résultats de génération
+2. **Trouver la metabox** : Dans la sidebar droite, cherchez "AI Recipe Generator Pro – Export"
+
+#### Export ZIP des images
+
+1. Cliquez sur **"Télécharger ZIP des images"**
+2. Un fichier `images-recettes-XXX.zip` se télécharge immédiatement
+3. Le ZIP contient toutes les images renommées :
+   - `recette-1.jpg`
+   - `recette-2.jpg`
+   - `recette-3.jpg`
+   - etc.
+
+**Utilité** :
+- Sauvegarder les images localement
+- Réutiliser les images dans d'autres supports (réseaux sociaux, print)
+- Partager avec des graphistes ou éditeurs
+
+#### Export TXT des recettes
+
+1. Cliquez sur **"Télécharger TXT des recettes"**
+2. Un fichier `recettes-XXX.txt` se télécharge
+3. Le fichier contient uniquement :
+   - Noms des recettes
+   - Instructions numérotées
+   - Format propre sans HTML
+
+**Exemple de contenu** :
+```
+SALADE CÉSAR VÉGÉTARIENNE
+==========================
+
+1) Laver la laitue romaine et la couper
+2) Préparer la sauce césar
+3) Ajouter les croûtons
+
+TARTE AUX LÉGUMES
+==================
+
+1) Préchauffer le four à 180°C
+2) Étaler la pâte
+3) Enfourner 30 minutes
+```
+
+**Utilité** :
+- Imprimer les recettes pour la cuisine
+- Partager par email/SMS
+- Créer un livre de recettes personnel
+
+#### Notes techniques
+
+- **ZipArchive** : Si non disponible sur votre serveur, le plugin utilisera automatiquement PclZip (un warning s'affichera)
+- **Sécurité** : Les exports sont protégés par nonce et nécessitent les permissions d'édition
+- **Ordre** : Les images sont exportées dans l'ordre d'apparition des recettes
+
 ## 🔒 Sécurité
 
 Le plugin respecte toutes les bonnes pratiques WordPress :
@@ -177,8 +238,19 @@ Le plugin respecte toutes les bonnes pratiques WordPress :
 - Logs détaillés de chaque étape
 - Gestion d'erreurs robuste (continue sans image si échec Replicate)
 
-### 🔄 Phase 4-5 (À venir)
-- Exports (PDF, JSON, schema.org)
+### ✅ Phase 4 (Complété) 🚀
+- **Metabox d'exportation** sur l'écran d'édition des articles
+- **Export ZIP** : Télécharge toutes les images des recettes
+  - Renommage automatique (recette-1.jpg, recette-2.jpg...)
+  - Support ZipArchive + fallback PclZip
+- **Export TXT** : Télécharge les recettes en format texte
+  - Uniquement noms et instructions
+  - Sans HTML, format propre et lisible
+- Sécurité : nonces, permissions, streaming sécurisé
+- Gestion d'erreurs complète
+
+### 🔄 Phase 5 (À venir)
+- Exports avancés (PDF, JSON, schema.org)
 - Optimisations performances
 
 ### 🔄 Phase 4 (À venir)
