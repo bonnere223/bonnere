@@ -94,21 +94,25 @@ Le plugin respecte toutes les bonnes pratiques WordPress :
 
 ## 📋 Phases de développement
 
-### ✅ Phase 1 (MVP - Complété)
+### ✅ Phase 1 (Complété)
 - Interface admin complète
 - Page Réglages avec Settings API
 - Diagnostics système
 - Sauvegarde sécurisée des clés API
 
-### ✅ Phase 2 (MVP - Complété)
+### ✅ Phase 2 (Complété)
 - Page Générer avec formulaire
-- Suggestions de titres (mock)
-- Architecture préparée pour IA
+- **Intégration OpenAI (GPT-4o) pour suggestions de titres**
+- Suggestions intelligentes basées sur :
+  - Les 15 derniers titres du blog
+  - Les titres manuels préférés
+  - Le sujet/thème fourni
+- Gestion complète des erreurs (401, 429, timeout, etc.)
+- UX optimale avec spinner et messages clairs
 
 ### 🔄 Phase 3 (À venir)
-- Intégration OpenAI pour génération de contenu
-- Génération réelle de recettes
-- Suggestions de titres intelligentes avec IA
+- Intégration OpenAI pour génération complète de recettes
+- Génération de contenu structuré (ingrédients, instructions, etc.)
 
 ### 🔄 Phase 4 (À venir)
 - Intégration Replicate pour génération d'images

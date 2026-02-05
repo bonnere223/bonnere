@@ -4,9 +4,9 @@
 
 Plugin WordPress professionnel pour générer des recettes intelligentes avec OpenAI et Replicate, puis les publier automatiquement.
 
-## ✅ Statut : MVP Complet (Phases 1 + 2)
+## ✅ Statut : Phase 2 Complète
 
-Le squelette complet du plugin est maintenant prêt et fonctionnel.
+Le plugin est maintenant fonctionnel avec intégration OpenAI pour les suggestions de titres.
 
 ## 📦 Contenu du dépôt
 
@@ -42,11 +42,16 @@ Le squelette complet du plugin est maintenant prêt et fonctionnel.
   - Versions PHP et WordPress
   - Vérification des clés API
 
-### Phase 2 : Interface de génération ✅
+### Phase 2 : Suggestions de titres avec OpenAI ✅
 - Page "Générer" avec formulaire complet
 - Champs : Sujet/Thème, Nombre de recettes, Titre
-- Suggestions de titres intelligentes (basées sur les 15 derniers articles + titres manuels)
-- Interface AJAX réactive
+- **Intégration OpenAI (GPT-4o) pour suggestions intelligentes**
+- Suggestions basées sur :
+  - Les 15 derniers articles publiés
+  - Les titres manuels préférés (réglages)
+  - Le sujet/thème fourni
+- Gestion d'erreurs complète (clé invalide, quota, timeout)
+- Interface AJAX réactive avec spinner
 - Design moderne et responsive
 
 ## 🔒 Sécurité
