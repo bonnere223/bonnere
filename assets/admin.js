@@ -423,14 +423,21 @@
 		handleGenerateSubmit: function(e) {
 			e.preventDefault();
 
-			const subject = $('#argp_subject').val().trim();
+			let subject = $('#argp_subject').val().trim();
 			const count = $('#argp_count').val();
 			const title = $('#argp_title').val().trim();
 			const status = $('#argp_status').val();
 
-			if (!subject) {
-				ARGPAdmin.showNotice('warning', 'Le sujet est requis.');
-				$('#argp_subject').focus();
+			// Si titre rempli mais pas sujet, utiliser le titre comme sujet
+			if (!subject && title) {
+				subject = title;
+				$('#argp_subject').val(title);
+			}
+
+			// Validation : au moins l'un des deux doit être rempli
+			if (!subject && !title) {
+				ARGPAdmin.showNotice('warning', 'Veuillez renseigner au moins un titre ou un thème.');
+				$('#argp_title').focus();
 				return;
 			}
 

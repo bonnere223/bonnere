@@ -184,7 +184,6 @@ class ARGP_Admin {
 								<div class="argp-field-group">
 									<label for="argp_subject" class="argp-label">
 										<?php esc_html_e( 'Sujet / Thème', 'ai-recipe-generator-pro' ); ?>
-										<span class="required">*</span>
 									</label>
 									<input 
 										type="text" 
@@ -192,10 +191,9 @@ class ARGP_Admin {
 										name="argp_subject" 
 										class="argp-input argp-input-large" 
 										placeholder="<?php esc_attr_e( 'Ex: recettes végétariennes, desserts au chocolat...', 'ai-recipe-generator-pro' ); ?>"
-										required
 									/>
 									<p class="argp-field-description">
-										<?php esc_html_e( 'Le thème principal des recettes à générer.', 'ai-recipe-generator-pro' ); ?>
+										<?php esc_html_e( 'Le thème principal des recettes à générer. Si vide, le titre sera utilisé comme thème.', 'ai-recipe-generator-pro' ); ?>
 									</p>
 								</div>
 

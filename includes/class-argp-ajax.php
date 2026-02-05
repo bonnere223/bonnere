@@ -300,9 +300,14 @@ class ARGP_Ajax {
 		$title   = substr( $title, 0, 200 );
 		$count   = max( 1, min( 10, $count ) ); // Clamp 1-10
 
-		// Validation
-		if ( empty( $subject ) ) {
-			wp_send_json_error( array( 'message' => __( 'Le sujet est requis.', 'ai-recipe-generator-pro' ) ) );
+		// Si titre rempli mais pas sujet, utiliser le titre comme sujet
+		if ( empty( $subject ) && ! empty( $title ) ) {
+			$subject = $title;
+		}
+
+		// Validation : au moins l'un des deux doit être rempli
+		if ( empty( $subject ) && empty( $title ) ) {
+			wp_send_json_error( array( 'message' => __( 'Veuillez renseigner au moins un titre ou un thème.', 'ai-recipe-generator-pro' ) ) );
 		}
 
 		// PHASE 5: Validation stricte du statut
