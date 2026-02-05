@@ -441,7 +441,12 @@
 				return;
 			}
 
+			// Masquer formulaire et bloc images de référence
 			$('#argp-generate-form').parent().hide();
+			$('.argp-card-images').hide();
+			$('.argp-card-image-settings').hide();
+			$('.argp-generate-action').hide();
+			
 			$('#argp-progress-container').show();
 			$('#argp-results-container').hide();
 
@@ -605,7 +610,16 @@
 			$('#argp-results-content').html(html);
 
 			$('#argp-generate-another').on('click', function() {
-				location.reload();
+				// Réafficher le formulaire au lieu de recharger
+				$('#argp-results-container').hide();
+				$('#argp-generate-form').parent().show();
+				$('.argp-card-images').show();
+				$('.argp-card-image-settings').show();
+				$('.argp-generate-action').show();
+				
+				// Reset champs
+				$('#argp-progress-logs').empty();
+				ARGPAdmin.updateProgress(0, 'Initialisation...');
 			});
 
 			ARGPAdmin.currentJobId = null;
@@ -637,6 +651,13 @@
 					ARGPAdmin.addLog('Génération annulée', 'info');
 					ARGPAdmin.currentJobId = null;
 					ARGPAdmin.showNotice('info', 'Génération annulée.');
+					
+					// Réafficher le formulaire
+					$('#argp-generate-form').parent().show();
+					$('.argp-card-images').show();
+					$('.argp-card-image-settings').show();
+					$('.argp-generate-action').show();
+					$('#argp-progress-container').hide();
 				}
 			});
 		},

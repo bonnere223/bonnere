@@ -3,7 +3,7 @@
  * Plugin Name: AI Recipe Generator Pro
  * Plugin URI: https://example.com/ai-recipe-generator-pro
  * Description: Génère des recettes intelligentes avec OpenAI et Replicate, puis les publie automatiquement dans WordPress.
- * Version: 2.1.0
+ * Version: 2.1.1
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * Author: Votre Nom
@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Constantes globales du plugin
  */
-define( 'ARGP_VERSION', '2.1.0' );
+define( 'ARGP_VERSION', '2.1.1' );
 define( 'ARGP_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ARGP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'ARGP_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
