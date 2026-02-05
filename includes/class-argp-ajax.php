@@ -319,17 +319,19 @@ class ARGP_Ajax {
 		// Créer le job
 		$job_id = 'argp_job_' . get_current_user_id() . '_' . wp_generate_password( 12, false );
 		$job_data = array(
-			'step'              => 0,
-			'subject'           => $subject,
-			'count'             => $count,
-			'title'             => $title,
-			'status'            => $status,
-			'openai_json'       => null,
-			'created_post_id'   => null,
-			'replicate_results' => array(),
-			'errors'            => array(),
-			'events'            => array(), // PHASE 5: Logs des événements
-			'started_at'        => time(),
+			'step'                   => 0,
+			'subject'                => $subject,
+			'count'                  => $count,
+			'title'                  => $title,
+			'status'                 => $status,
+			'openai_json'            => null,
+			'created_post_id'        => null,
+			'replicate_results'      => array(),
+			'errors'                 => array(),
+			'events'                 => array(),
+			'started_at'             => time(),
+			'last_replicate_call'    => 0, // BUGFIX: Timestamp dernier appel Replicate
+			'replicate_retry_count'  => 0, // BUGFIX: Compteur de retries
 		);
 
 		// PHASE 5: Sauvegarder avec TTL 30 min (au lieu de 1h)
@@ -511,6 +513,7 @@ class ARGP_Ajax {
 
 	/**
 	 * STEP 2+: Générer l'image pour une recette
+	 * BUGFIX: Séquençage Replicate avec délai anti-throttling
 	 *
 	 * @param array &$job          Données du job.
 	 * @param int   $recipe_index  Index de la recette.
@@ -520,28 +523,83 @@ class ARGP_Ajax {
 		$recipe = $job['openai_json']['recipes'][ $recipe_index ];
 		$total_recipes = count( $job['openai_json']['recipes'] );
 
+		// BUGFIX: Vérifier délai minimal entre appels Replicate (12 secondes)
+		$min_delay = 12;
+		$last_call = isset( $job['last_replicate_call'] ) ? $job['last_replicate_call'] : 0;
+		$time_since_last = time() - $last_call;
+
 		// Vérifier si on a déjà une prédiction en cours
 		if ( isset( $job['replicate_results'][ $recipe_index ]['prediction_id'] ) ) {
 			$prediction_id = $job['replicate_results'][ $recipe_index ]['prediction_id'];
 			$result = $this->replicate_check_prediction( $prediction_id );
 
+			// BUGFIX: Gestion intelligente du throttling
+			if ( is_wp_error( $result ) && $result->get_error_code() === 'replicate_throttled' ) {
+				$retry_after = $result->get_error_data( 'replicate_throttled' );
+				$retry_after = is_numeric( $retry_after ) ? $retry_after : 15;
+
+				// Incrémenter compteur retry
+				if ( ! isset( $job['replicate_results'][ $recipe_index ]['retry_count'] ) ) {
+					$job['replicate_results'][ $recipe_index ]['retry_count'] = 0;
+				}
+				$job['replicate_results'][ $recipe_index ]['retry_count']++;
+
+				// Max 3 retries
+				if ( $job['replicate_results'][ $recipe_index ]['retry_count'] > 3 ) {
+					$job['errors'][] = sprintf(
+						__( 'Image non générée pour "%s" (limite API atteinte après 3 tentatives)', 'ai-recipe-generator-pro' ),
+						$recipe['name']
+					);
+					$job['replicate_results'][ $recipe_index ] = array( 'status' => 'failed' );
+					$this->append_recipe_to_post( $job['created_post_id'], $recipe, null );
+					$job['step']++;
+					
+					ARGP_Settings::log( "Replicate throttling - abandon après 3 retries pour recette {$recipe['name']}", 'warning' );
+					
+					return array(
+						'done'     => false,
+						'progress' => 30 + ( ( $recipe_index + 1 ) / $total_recipes ) * 60,
+						'message'  => sprintf(
+							__( 'Recette %1$d/%2$d (%3$s) ajoutée (sans image).', 'ai-recipe-generator-pro' ),
+							$recipe_index + 1,
+							$total_recipes,
+							$recipe['name']
+						),
+					);
+				}
+
+				// BUGFIX: Message utilisateur clair (pas technique)
+				return array(
+					'done'     => false,
+					'progress' => 30 + ( $recipe_index / $total_recipes ) * 60,
+					'message'  => sprintf(
+						__( '⏳ L\'API d\'images est momentanément ralentie. Nouvelle tentative dans %ds... (%d/%d)', 'ai-recipe-generator-pro' ),
+						$retry_after,
+						$recipe_index + 1,
+						$total_recipes
+					),
+				);
+			}
+
 			if ( is_wp_error( $result ) ) {
-				// Erreur : on continue sans image
+				// Autre erreur : on continue sans image
+				$error_msg = $this->get_user_friendly_error_message( $result );
 				$job['errors'][] = sprintf(
-					/* translators: 1: Nom de la recette, 2: Message d'erreur */
-					__( 'Erreur image pour "%1$s": %2$s', 'ai-recipe-generator-pro' ),
+					__( 'Image non générée pour "%s": %s', 'ai-recipe-generator-pro' ),
 					$recipe['name'],
-					$result->get_error_message()
+					$error_msg
 				);
 				$job['replicate_results'][ $recipe_index ] = array( 'status' => 'failed' );
 				$this->append_recipe_to_post( $job['created_post_id'], $recipe, null );
 				$job['step']++;
+				
+				ARGP_Settings::log( "Erreur Replicate pour {$recipe['name']}: " . $result->get_error_message(), 'error' );
+				
 				$progress = 30 + ( ( $recipe_index + 1 ) / $total_recipes ) * 60;
 				return array(
 					'done'     => false,
 					'progress' => min( 90, $progress ),
 					'message'  => sprintf(
-						/* translators: 1: Index recette, 2: Total, 3: Nom recette */
 						__( 'Recette %1$d/%2$d (%3$s) ajoutée (sans image).', 'ai-recipe-generator-pro' ),
 						$recipe_index + 1,
 						$total_recipes,
@@ -550,13 +608,12 @@ class ARGP_Ajax {
 				);
 			}
 
-			if ( 'pending' === $result['status'] ) {
+			if ( 'pending' === $result['status'] || 'processing' === $result['status'] || 'starting' === $result['status'] ) {
 				// Toujours en cours
 				return array(
 					'done'     => false,
 					'progress' => 30 + ( $recipe_index / $total_recipes ) * 60,
 					'message'  => sprintf(
-						/* translators: 1: Index recette, 2: Total, 3: Nom recette */
 						__( 'Génération de l\'image %1$d/%2$d (%3$s)...', 'ai-recipe-generator-pro' ),
 						$recipe_index + 1,
 						$total_recipes,
@@ -572,10 +629,8 @@ class ARGP_Ajax {
 
 				if ( is_wp_error( $attachment_id ) ) {
 					$job['errors'][] = sprintf(
-						/* translators: 1: Nom de la recette, 2: Message d'erreur */
-						__( 'Erreur téléchargement image pour "%1$s": %2$s', 'ai-recipe-generator-pro' ),
-						$recipe['name'],
-						$attachment_id->get_error_message()
+						__( 'Erreur téléchargement image pour "%s"', 'ai-recipe-generator-pro' ),
+						$recipe['name']
 					);
 					$attachment_id = null;
 				}
@@ -588,11 +643,13 @@ class ARGP_Ajax {
 				$this->append_recipe_to_post( $job['created_post_id'], $recipe, $attachment_id );
 				$job['step']++;
 				$progress = 30 + ( ( $recipe_index + 1 ) / $total_recipes ) * 60;
+				
+				ARGP_Settings::log( "Image générée avec succès pour {$recipe['name']}", 'info' );
+				
 				return array(
 					'done'     => false,
 					'progress' => min( 90, $progress ),
 					'message'  => sprintf(
-						/* translators: 1: Index recette, 2: Total, 3: Nom recette */
 						__( 'Recette %1$d/%2$d (%3$s) ajoutée avec image.', 'ai-recipe-generator-pro' ),
 						$recipe_index + 1,
 						$total_recipes,
@@ -602,26 +659,64 @@ class ARGP_Ajax {
 			}
 		}
 
+		// BUGFIX: Vérifier délai avant nouvel appel Replicate
+		if ( $last_call > 0 && $time_since_last < $min_delay ) {
+			$wait_remaining = $min_delay - $time_since_last;
+			
+			return array(
+				'done'     => false,
+				'progress' => 30 + ( $recipe_index / $total_recipes ) * 60,
+				'message'  => sprintf(
+					__( '⏳ Séquençage API images (%ds)... Image %d/%d à venir', 'ai-recipe-generator-pro' ),
+					$wait_remaining,
+					$recipe_index + 1,
+					$total_recipes
+				),
+			);
+		}
+
 		// Démarrer une nouvelle prédiction Replicate
 		$prediction_result = $this->replicate_start_prediction( $recipe['image_prompt'] );
 
+		// BUGFIX: Mettre à jour timestamp dernier appel
+		$job['last_replicate_call'] = time();
+
 		if ( is_wp_error( $prediction_result ) ) {
-			// Erreur : on continue sans image
+			// BUGFIX: Gestion spécifique throttling
+			if ( $prediction_result->get_error_code() === 'replicate_throttled' ) {
+				$retry_after = $prediction_result->get_error_data( 'replicate_throttled' );
+				$retry_after = is_numeric( $retry_after ) ? $retry_after : 15;
+				
+				ARGP_Settings::log( "Replicate throttled au start - retry dans {$retry_after}s", 'warning' );
+				
+				return array(
+					'done'     => false,
+					'progress' => 30 + ( $recipe_index / $total_recipes ) * 60,
+					'message'  => sprintf(
+						__( '⏳ L\'API d\'images est momentanément ralentie. Reprise automatique dans %ds...', 'ai-recipe-generator-pro' ),
+						$retry_after
+					),
+				);
+			}
+
+			// Autre erreur : on continue sans image
+			$error_msg = $this->get_user_friendly_error_message( $prediction_result );
 			$job['errors'][] = sprintf(
-				/* translators: 1: Nom de la recette, 2: Message d'erreur */
-				__( 'Erreur Replicate pour "%1$s": %2$s', 'ai-recipe-generator-pro' ),
+				__( 'Image non générée pour "%s": %s', 'ai-recipe-generator-pro' ),
 				$recipe['name'],
-				$prediction_result->get_error_message()
+				$error_msg
 			);
 			$job['replicate_results'][ $recipe_index ] = array( 'status' => 'failed' );
 			$this->append_recipe_to_post( $job['created_post_id'], $recipe, null );
 			$job['step']++;
+			
+			ARGP_Settings::log( "Erreur Replicate start pour {$recipe['name']}: " . $prediction_result->get_error_message(), 'error' );
+			
 			$progress = 30 + ( ( $recipe_index + 1 ) / $total_recipes ) * 60;
 			return array(
 				'done'     => false,
 				'progress' => min( 90, $progress ),
 				'message'  => sprintf(
-					/* translators: 1: Index recette, 2: Total, 3: Nom recette */
 					__( 'Recette %1$d/%2$d (%3$s) ajoutée (sans image).', 'ai-recipe-generator-pro' ),
 					$recipe_index + 1,
 					$total_recipes,
@@ -634,19 +729,48 @@ class ARGP_Ajax {
 		$job['replicate_results'][ $recipe_index ] = array(
 			'prediction_id' => $prediction_result['id'],
 			'status'        => 'pending',
+			'retry_count'   => 0,
 		);
+
+		ARGP_Settings::log( "Prédiction Replicate démarrée pour {$recipe['name']}: {$prediction_result['id']}", 'info' );
 
 		return array(
 			'done'     => false,
 			'progress' => 30 + ( $recipe_index / $total_recipes ) * 60,
 			'message'  => sprintf(
-				/* translators: 1: Index recette, 2: Total, 3: Nom recette */
 				__( 'Génération de l\'image %1$d/%2$d (%3$s) démarrée...', 'ai-recipe-generator-pro' ),
 				$recipe_index + 1,
 				$total_recipes,
 				$recipe['name']
 			),
 		);
+	}
+
+	/**
+	 * BUGFIX: Convertit les erreurs techniques en messages utilisateur
+	 *
+	 * @param WP_Error $error Erreur technique.
+	 * @return string Message utilisateur friendly.
+	 */
+	private function get_user_friendly_error_message( $error ) {
+		$code = $error->get_error_code();
+		$message = $error->get_error_message();
+
+		// Messages utilisateur clairs
+		$friendly_messages = array(
+			'replicate_throttled' => __( 'API momentanément ralentie', 'ai-recipe-generator-pro' ),
+			'replicate_error'     => __( 'Service temporairement indisponible', 'ai-recipe-generator-pro' ),
+			'invalid_url'         => __( 'Image non accessible', 'ai-recipe-generator-pro' ),
+			'openai_error'        => __( 'Service texte temporairement indisponible', 'ai-recipe-generator-pro' ),
+		);
+
+		// Si message friendly existe, l'utiliser
+		if ( isset( $friendly_messages[ $code ] ) ) {
+			return $friendly_messages[ $code ];
+		}
+
+		// Sinon, message générique (pas de détails techniques)
+		return __( 'Erreur temporaire', 'ai-recipe-generator-pro' );
 	}
 
 	/**
@@ -825,9 +949,27 @@ class ARGP_Ajax {
 		}
 
 		$http_code = wp_remote_retrieve_response_code( $response );
+		
+		// BUGFIX: Gestion spécifique du throttling (429)
+		if ( 429 === $http_code ) {
+			$retry_after = wp_remote_retrieve_header( $response, 'retry-after' );
+			$retry_after = is_numeric( $retry_after ) ? (int) $retry_after : 15;
+			
+			ARGP_Settings::log( "Replicate throttled (429) - retry after: {$retry_after}s", 'warning' );
+			
+			return new WP_Error(
+				'replicate_throttled',
+				__( 'API ralentie (trop de requêtes)', 'ai-recipe-generator-pro' ),
+				$retry_after
+			);
+		}
+		
 		if ( 201 !== $http_code && 200 !== $http_code ) {
 			$body_data = json_decode( wp_remote_retrieve_body( $response ), true );
 			$error_msg = isset( $body_data['detail'] ) ? $body_data['detail'] : 'Erreur Replicate';
+			
+			ARGP_Settings::log( "Erreur Replicate start (code {$http_code}): {$error_msg}", 'error' );
+			
 			return new WP_Error( 'replicate_error', $error_msg );
 		}
 
@@ -861,11 +1003,35 @@ class ARGP_Ajax {
 		}
 
 		$http_code = wp_remote_retrieve_response_code( $response );
+		
+		// BUGFIX: Gestion throttling sur check aussi
+		if ( 429 === $http_code ) {
+			$retry_after = wp_remote_retrieve_header( $response, 'retry-after' );
+			$retry_after = is_numeric( $retry_after ) ? (int) $retry_after : 15;
+			
+			ARGP_Settings::log( "Replicate throttled (429) sur check - retry after: {$retry_after}s", 'warning' );
+			
+			return new WP_Error(
+				'replicate_throttled',
+				__( 'API ralentie (trop de requêtes)', 'ai-recipe-generator-pro' ),
+				$retry_after
+			);
+		}
+		
 		if ( 200 !== $http_code ) {
+			ARGP_Settings::log( "Erreur Replicate check (code {$http_code})", 'error' );
 			return new WP_Error( 'replicate_error', 'Erreur lors de la vérification' );
 		}
 
 		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		
+		// BUGFIX: Gérer status "failed" de Replicate
+		if ( isset( $data['status'] ) && 'failed' === $data['status'] ) {
+			$error_detail = isset( $data['error'] ) ? $data['error'] : 'Génération échouée';
+			ARGP_Settings::log( "Replicate prediction failed: {$error_detail}", 'error' );
+			return new WP_Error( 'replicate_generation_failed', __( 'Génération d\'image échouée', 'ai-recipe-generator-pro' ) );
+		}
+		
 		return $data;
 	}
 
