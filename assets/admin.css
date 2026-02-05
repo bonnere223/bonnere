@@ -1,0 +1,447 @@
+/**
+ * Styles Admin pour AI Recipe Generator Pro
+ *
+ * @package AI_Recipe_Generator_Pro
+ */
+
+/* ========================================
+   GÉNÉRAL
+   ======================================== */
+
+.argp-admin-page {
+	max-width: 1200px;
+}
+
+.argp-admin-page h1 {
+	margin-bottom: 10px;
+}
+
+.argp-admin-page .description {
+	font-size: 14px;
+	color: #646970;
+	margin-bottom: 20px;
+}
+
+.required {
+	color: #d63638;
+}
+
+/* ========================================
+   FORMULAIRE DE GÉNÉRATION
+   ======================================== */
+
+.argp-generate-form-container {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 20px;
+	margin-top: 20px;
+}
+
+.argp-form .form-table {
+	margin-top: 0;
+}
+
+.argp-title-field-wrapper {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+}
+
+.argp-title-field-wrapper input[type="text"] {
+	flex: 1;
+}
+
+#argp-suggest-title {
+	flex-shrink: 0;
+}
+
+/* ========================================
+   SUGGESTIONS DE TITRES
+   ======================================== */
+
+.argp-suggestions-container {
+	margin-top: 15px;
+	padding: 15px;
+	background: #f0f6fc;
+	border: 1px solid #c3dfff;
+	border-radius: 4px;
+}
+
+.argp-suggestions-label {
+	margin: 0 0 10px 0;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.argp-suggestions-list {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.argp-suggestion-item {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 16px;
+	background: #fff;
+	border: 2px solid #dcdcde;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.argp-suggestion-item:hover {
+	border-color: #2271b1;
+	background: #f6f7f7;
+	transform: translateX(5px);
+}
+
+.argp-suggestion-item.argp-selected {
+	border-color: #00a32a;
+	background: #f0f6fc;
+}
+
+.argp-suggestion-number {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	background: #2271b1;
+	color: #fff;
+	border-radius: 50%;
+	font-weight: 600;
+	font-size: 13px;
+	flex-shrink: 0;
+}
+
+.argp-suggestion-text {
+	flex: 1;
+	color: #1d2327;
+	font-size: 14px;
+	line-height: 1.4;
+}
+
+/* ========================================
+   RÉSULTATS (TODO Phase 3-5)
+   ======================================== */
+
+.argp-results-container {
+	margin-top: 30px;
+	padding: 20px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+}
+
+#argp-results-content {
+	margin-top: 15px;
+}
+
+/* ========================================
+   PAGE RÉGLAGES
+   ======================================== */
+
+.argp-settings-container {
+	max-width: 900px;
+}
+
+.argp-settings-container form {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 20px;
+	margin-bottom: 20px;
+}
+
+.argp-api-key-field {
+	font-family: 'Courier New', monospace;
+}
+
+.argp-toggle-visibility {
+	margin-left: 5px;
+}
+
+.argp-key-preview {
+	display: inline-block;
+	margin-left: 10px;
+	font-family: 'Courier New', monospace;
+	color: #646970;
+	font-size: 12px;
+}
+
+/* ========================================
+   DIAGNOSTICS
+   ======================================== */
+
+.argp-diagnostics-section {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 20px;
+	margin-top: 20px;
+}
+
+.argp-diagnostics-section h2 {
+	margin-top: 0;
+}
+
+#argp-run-diagnostics {
+	margin-bottom: 20px;
+}
+
+.argp-diagnostics-results {
+	margin-top: 20px;
+}
+
+.argp-diagnostics-badges {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	gap: 15px;
+}
+
+.argp-diagnostic-item {
+	padding: 15px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
+/* ========================================
+   BADGES DE STATUT
+   ======================================== */
+
+.argp-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 16px;
+	border-radius: 4px;
+	font-weight: 600;
+	font-size: 13px;
+	margin-bottom: 10px;
+}
+
+.argp-badge-success {
+	background: #00a32a;
+	color: #fff;
+	border: 2px solid #008a20;
+}
+
+.argp-badge-error {
+	background: #d63638;
+	color: #fff;
+	border: 2px solid #b32d2e;
+}
+
+.argp-badge-warning {
+	background: #f0b849;
+	color: #1d2327;
+	border: 2px solid #dba617;
+}
+
+.argp-badge-info {
+	background: #2271b1;
+	color: #fff;
+	border: 2px solid #135e96;
+}
+
+.argp-badge-icon {
+	font-size: 16px;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.argp-badge-label {
+	font-size: 13px;
+}
+
+/* ========================================
+   MESSAGES DE DIAGNOSTICS
+   ======================================== */
+
+.argp-diagnostic-message {
+	font-size: 14px;
+	color: #1d2327;
+	margin-bottom: 8px;
+	line-height: 1.5;
+}
+
+.argp-diagnostic-details {
+	margin-top: 10px;
+	padding: 10px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	font-family: 'Courier New', monospace;
+	font-size: 12px;
+	color: #646970;
+	overflow-x: auto;
+}
+
+.argp-diagnostic-details small {
+	display: block;
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+/* ========================================
+   NOTICES INLINE
+   ======================================== */
+
+.notice.inline {
+	margin: 15px 0;
+	padding: 12px;
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media screen and (max-width: 782px) {
+	.argp-title-field-wrapper {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.argp-title-field-wrapper input[type="text"] {
+		width: 100%;
+	}
+
+	#argp-suggest-title {
+		width: 100%;
+	}
+
+	.argp-diagnostics-badges {
+		grid-template-columns: 1fr;
+	}
+
+	.argp-suggestion-item {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+	}
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(-10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.argp-diagnostics-results,
+.argp-suggestions-container {
+	animation: fadeIn 0.3s ease;
+}
+
+/* ========================================
+   LOADING STATES
+   ======================================== */
+
+button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+button:disabled::after {
+	content: "...";
+	animation: ellipsis 1.5s infinite;
+}
+
+@keyframes ellipsis {
+	0%, 20% {
+		content: ".";
+	}
+	40% {
+		content: "..";
+	}
+	60%, 100% {
+		content: "...";
+	}
+}
+
+/* ========================================
+   DARK MODE SUPPORT (WordPress 5.7+)
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+	.argp-generate-form-container,
+	.argp-settings-container form,
+	.argp-diagnostics-section,
+	.argp-results-container {
+		background: #1d2327;
+		border-color: #3c434a;
+	}
+
+	.argp-diagnostic-item {
+		background: #2c3338;
+		border-color: #3c434a;
+	}
+
+	.argp-suggestions-container {
+		background: #1d2327;
+		border-color: #3c434a;
+	}
+
+	.argp-suggestion-item {
+		background: #2c3338;
+		border-color: #3c434a;
+		color: #f0f0f1;
+	}
+
+	.argp-suggestion-item:hover {
+		background: #1d2327;
+		border-color: #72aee6;
+	}
+
+	.argp-suggestion-text,
+	.argp-diagnostic-message,
+	.argp-suggestions-label {
+		color: #f0f0f1;
+	}
+
+	.argp-diagnostic-details {
+		background: #1d2327;
+		border-color: #3c434a;
+		color: #a7aaad;
+	}
+}
+
+/* ========================================
+   UTILITAIRES
+   ======================================== */
+
+.argp-mt-10 {
+	margin-top: 10px;
+}
+
+.argp-mt-20 {
+	margin-top: 20px;
+}
+
+.argp-mb-10 {
+	margin-bottom: 10px;
+}
+
+.argp-mb-20 {
+	margin-bottom: 20px;
+}
+
+.argp-text-center {
+	text-align: center;
+}
+
+.argp-hidden {
+	display: none;
+}
