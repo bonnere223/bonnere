@@ -122,6 +122,10 @@ class ARGP_Admin {
 			array(
 				'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
 				'nonce'         => wp_create_nonce( 'argp_ajax_nonce' ),
+				'costs'         => array(
+					'openai_per_recipe' => 0.03,
+					'replicate_per_image' => 0.04,
+				),
 				'strings'       => array(
 					'testing'          => __( 'Test en cours...', 'ai-recipe-generator-pro' ),
 					'testComplete'     => __( 'Test terminé', 'ai-recipe-generator-pro' ),
@@ -135,7 +139,7 @@ class ARGP_Admin {
 	}
 
 	/**
-	 * Affiche la page "Générer"
+	 * Affiche la page "Générer" - REFONTE UX PREMIUM
 	 */
 	public function render_generate_page() {
 		// Vérifier les permissions
@@ -144,171 +148,282 @@ class ARGP_Admin {
 		}
 
 		?>
-		<div class="wrap argp-admin-page">
-			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
-			<p class="description">
-				<?php esc_html_e( 'Générez des recettes intelligentes avec l\'IA et publiez-les automatiquement sur votre blog.', 'ai-recipe-generator-pro' ); ?>
+		<div class="wrap argp-admin-page argp-premium-ui">
+			<h1 class="argp-page-title">
+				<span class="dashicons dashicons-food"></span>
+				<?php echo esc_html( get_admin_page_title() ); ?>
+			</h1>
+			<p class="argp-page-subtitle">
+				<?php esc_html_e( 'Générez des articles de recettes complets avec l\'intelligence artificielle', 'ai-recipe-generator-pro' ); ?>
 			</p>
 
-			<div class="argp-generate-form-container">
-				<form id="argp-generate-form" method="post" class="argp-form">
-					<?php wp_nonce_field( 'argp_generate_action', 'argp_generate_nonce' ); ?>
+			<div class="argp-layout-wrapper">
+				<!-- COLONNE PRINCIPALE -->
+				<div class="argp-main-column">
+					<!-- CARTE: CONTENU -->
+					<div class="argp-card argp-card-content">
+						<div class="argp-card-header">
+							<h2><?php esc_html_e( '📝 Contenu de l\'article', 'ai-recipe-generator-pro' ); ?></h2>
+						</div>
+						<div class="argp-card-body">
+							<form id="argp-generate-form" method="post" class="argp-form-premium">
+								<?php wp_nonce_field( 'argp_generate_action', 'argp_generate_nonce' ); ?>
 
-					<table class="form-table">
-						<tbody>
-							<!-- Sujet/Thème -->
-							<tr>
-								<th scope="row">
-									<label for="argp_subject">
-										<?php esc_html_e( 'Sujet/Thème', 'ai-recipe-generator-pro' ); ?>
+								<!-- Sujet/Thème -->
+								<div class="argp-field-group">
+									<label for="argp_subject" class="argp-label">
+										<?php esc_html_e( 'Sujet / Thème', 'ai-recipe-generator-pro' ); ?>
 										<span class="required">*</span>
 									</label>
-								</th>
-								<td>
 									<input 
 										type="text" 
 										id="argp_subject" 
 										name="argp_subject" 
-										class="regular-text" 
+										class="argp-input argp-input-large" 
 										placeholder="<?php esc_attr_e( 'Ex: recettes végétariennes, desserts au chocolat...', 'ai-recipe-generator-pro' ); ?>"
 										required
 									/>
-									<p class="description">
+									<p class="argp-field-description">
 										<?php esc_html_e( 'Le thème principal des recettes à générer.', 'ai-recipe-generator-pro' ); ?>
 									</p>
-								</td>
-							</tr>
+								</div>
 
-							<!-- Nombre de recettes -->
-							<tr>
-								<th scope="row">
-									<label for="argp_count">
-										<?php esc_html_e( 'Nombre de recettes', 'ai-recipe-generator-pro' ); ?>
+								<!-- Titre + Suggestions -->
+								<div class="argp-field-group">
+									<label for="argp_title" class="argp-label">
+										<?php esc_html_e( 'Titre de l\'album / article', 'ai-recipe-generator-pro' ); ?>
 									</label>
-								</th>
-								<td>
-									<select id="argp_count" name="argp_count">
-										<?php for ( $i = 1; $i <= 10; $i++ ) : ?>
-											<option value="<?php echo esc_attr( $i ); ?>" <?php selected( $i, 3 ); ?>>
-												<?php echo esc_html( $i ); ?>
-											</option>
-										<?php endfor; ?>
-									</select>
-									<p class="description">
-										<?php esc_html_e( 'Nombre de recettes à générer (1 à 10).', 'ai-recipe-generator-pro' ); ?>
-									</p>
-								</td>
-							</tr>
-
-							<!-- Titre -->
-							<tr>
-								<th scope="row">
-									<label for="argp_title">
-										<?php esc_html_e( 'Titre de l\'article', 'ai-recipe-generator-pro' ); ?>
-									</label>
-								</th>
-								<td>
-									<div class="argp-title-field-wrapper">
+									<div class="argp-title-wrapper">
 										<input 
 											type="text" 
 											id="argp_title" 
 											name="argp_title" 
-											class="regular-text" 
-											placeholder="<?php esc_attr_e( 'Laissez vide pour utiliser le sujet', 'ai-recipe-generator-pro' ); ?>"
+											class="argp-input argp-input-large argp-title-input" 
+											placeholder="<?php esc_attr_e( 'Ex: 10 recettes végétariennes faciles...', 'ai-recipe-generator-pro' ); ?>"
 										/>
+										<div class="argp-title-loading-bar" style="display: none;"></div>
+									</div>
+									
+									<div class="argp-title-actions">
 										<button 
 											type="button" 
 											id="argp-suggest-title" 
-											class="button button-secondary"
+											class="argp-btn argp-btn-secondary"
 										>
+											<span class="dashicons dashicons-lightbulb"></span>
 											<?php esc_html_e( 'Suggérer', 'ai-recipe-generator-pro' ); ?>
 										</button>
+										<button 
+											type="button" 
+											id="argp-new-theme" 
+											class="argp-btn argp-btn-secondary"
+										>
+											<span class="dashicons dashicons-admin-site-alt3"></span>
+											<?php esc_html_e( 'Nouveau thème', 'ai-recipe-generator-pro' ); ?>
+										</button>
 									</div>
-									<p class="description">
-										<?php esc_html_e( 'Titre de l\'article WordPress. Cliquez sur "Suggérer" pour obtenir des propositions basées sur vos articles récents.', 'ai-recipe-generator-pro' ); ?>
+
+									<!-- Nombre détecté -->
+									<div id="argp-detected-count" class="argp-detected-count" style="display: none;">
+										<span class="dashicons dashicons-yes-alt"></span>
+										<span id="argp-detected-count-text"></span>
+									</div>
+									<input type="hidden" id="argp_count" name="argp_count" value="1" />
+
+									<p class="argp-field-description">
+										<?php esc_html_e( 'Le nombre de recettes est détecté automatiquement depuis le titre (ex: "10 recettes" → 10).', 'ai-recipe-generator-pro' ); ?>
 									</p>
-									
-									<!-- Zone de suggestions -->
+
+									<!-- Zone suggestions -->
 									<div id="argp-suggestions-container" class="argp-suggestions-container" style="display: none;">
-										<p class="argp-suggestions-label">
-											<?php esc_html_e( 'Cliquez sur une suggestion pour l\'utiliser :', 'ai-recipe-generator-pro' ); ?>
-										</p>
-										<div id="argp-suggestions-list" class="argp-suggestions-list">
-											<!-- Les suggestions seront insérées ici par JS -->
-										</div>
+										<div id="argp-suggestions-list" class="argp-suggestions-list"></div>
 									</div>
-								</td>
-							</tr>
 
-							<!-- Statut de l'article (NOUVEAU PHASE 3) -->
-							<tr>
-								<th scope="row">
-									<label for="argp_status">
-										<?php esc_html_e( 'Statut de l\'article', 'ai-recipe-generator-pro' ); ?>
+									<!-- Zone nouveau thème -->
+									<div id="argp-new-themes-container" class="argp-new-themes-container" style="display: none;">
+										<p class="argp-new-themes-label">
+											<span class="dashicons dashicons-star-filled"></span>
+											<?php esc_html_e( 'Idées de thèmes inédits :', 'ai-recipe-generator-pro' ); ?>
+										</p>
+										<div id="argp-new-themes-list" class="argp-new-themes-list"></div>
+									</div>
+								</div>
+
+								<!-- Statut publication -->
+								<div class="argp-field-group">
+									<label for="argp_status" class="argp-label">
+										<?php esc_html_e( 'Statut de publication', 'ai-recipe-generator-pro' ); ?>
 									</label>
-								</th>
-								<td>
-									<select id="argp_status" name="argp_status">
-										<option value="draft" selected>
-											<?php esc_html_e( 'Brouillon (draft)', 'ai-recipe-generator-pro' ); ?>
-										</option>
-										<option value="publish">
-											<?php esc_html_e( 'Publié (publish)', 'ai-recipe-generator-pro' ); ?>
-										</option>
+									<select id="argp_status" name="argp_status" class="argp-select">
+										<option value="draft" selected><?php esc_html_e( '📝 Brouillon', 'ai-recipe-generator-pro' ); ?></option>
+										<option value="publish"><?php esc_html_e( '🚀 Publié', 'ai-recipe-generator-pro' ); ?></option>
 									</select>
-									<p class="description">
-										<?php esc_html_e( 'Statut de publication de l\'article généré. Recommandation : commencez par "Brouillon" pour relire avant publication.', 'ai-recipe-generator-pro' ); ?>
+									<p class="argp-field-description">
+										<?php esc_html_e( 'Recommandation : commencez par "Brouillon" pour relire.', 'ai-recipe-generator-pro' ); ?>
 									</p>
-								</td>
-							</tr>
-						</tbody>
-					</table>
+								</div>
+							</form>
+						</div>
+					</div>
 
-					<p class="submit">
-						<button type="submit" class="button button-primary button-large" id="argp-generate-submit">
-							<span class="dashicons dashicons-admin-post" style="margin-top: 4px;"></span>
-							<?php esc_html_e( 'Générer l\'article complet', 'ai-recipe-generator-pro' ); ?>
-						</button>
-					</p>
-				</form>
+					<!-- CARTE: IMAGES DE RÉFÉRENCE -->
+					<div class="argp-card argp-card-images">
+						<div class="argp-card-header">
+							<h2><?php esc_html_e( '🖼️ Style visuel des images', 'ai-recipe-generator-pro' ); ?></h2>
+							<p class="argp-card-subtitle"><?php esc_html_e( 'Optionnel : uploadez des images de référence pour chaque recette', 'ai-recipe-generator-pro' ); ?></p>
+						</div>
+						<div class="argp-card-body">
+							<div id="argp-reference-images-container" class="argp-reference-images-container">
+								<p class="argp-info-text">
+									<?php esc_html_e( 'Le nombre de champs apparaîtra automatiquement selon le titre détecté.', 'ai-recipe-generator-pro' ); ?>
+								</p>
+							</div>
 
-				<!-- PHASE 3: Zone de progression -->
-				<div id="argp-progress-container" class="argp-progress-container" style="display: none;">
-					<h2><?php esc_html_e( 'Génération en cours...', 'ai-recipe-generator-pro' ); ?></h2>
-					
-					<!-- Barre de progression -->
-					<div class="argp-progress-bar-wrapper">
-						<div class="argp-progress-bar">
-							<div id="argp-progress-bar-fill" class="argp-progress-bar-fill" style="width: 0%;">
-								<span id="argp-progress-percent" class="argp-progress-percent">0%</span>
+							<div class="argp-upload-options">
+								<button type="button" id="argp-upload-zip" class="argp-btn argp-btn-outline">
+									<span class="dashicons dashicons-media-archive"></span>
+									<?php esc_html_e( 'Uploader un ZIP/RAR', 'ai-recipe-generator-pro' ); ?>
+								</button>
+								<input type="file" id="argp-zip-input" accept=".zip,.rar" style="display: none;" />
 							</div>
 						</div>
 					</div>
 
-					<!-- Message de statut -->
-					<div id="argp-progress-status" class="argp-progress-status">
-						<?php esc_html_e( 'Initialisation...', 'ai-recipe-generator-pro' ); ?>
+					<!-- CARTE: OPTIONS IMAGE AVANCÉES -->
+					<div class="argp-card argp-card-image-settings">
+						<div class="argp-card-header argp-collapsible" data-target="argp-advanced-image-settings">
+							<h2>
+								<span class="dashicons dashicons-admin-settings"></span>
+								<?php esc_html_e( 'Options image avancées', 'ai-recipe-generator-pro' ); ?>
+								<span class="argp-toggle-icon dashicons dashicons-arrow-down-alt2"></span>
+							</h2>
+						</div>
+						<div class="argp-card-body" id="argp-advanced-image-settings" style="display: none;">
+							<div class="argp-field-group">
+								<label class="argp-label">
+									<input type="checkbox" id="argp_high_quality" name="argp_high_quality" value="1" />
+									<?php esc_html_e( 'Qualité maximale', 'ai-recipe-generator-pro' ); ?>
+									<span class="argp-tooltip" data-tip="<?php esc_attr_e( 'Génère des images en haute résolution (coût +20%)', 'ai-recipe-generator-pro' ); ?>">?</span>
+								</label>
+							</div>
+							<div class="argp-field-group">
+								<label class="argp-label">
+									<input type="checkbox" id="argp_realistic_style" name="argp_realistic_style" value="1" checked />
+									<?php esc_html_e( 'Style photo réaliste', 'ai-recipe-generator-pro' ); ?>
+									<span class="argp-tooltip" data-tip="<?php esc_attr_e( 'Photos professionnelles type magazine culinaire', 'ai-recipe-generator-pro' ); ?>">?</span>
+								</label>
+							</div>
+							<div class="argp-field-group">
+								<label class="argp-label">
+									<input type="checkbox" id="argp_top_view" name="argp_top_view" value="1" />
+									<?php esc_html_e( 'Vue de dessus', 'ai-recipe-generator-pro' ); ?>
+									<span class="argp-tooltip" data-tip="<?php esc_attr_e( 'Plat photographié d\'en haut (flat lay)', 'ai-recipe-generator-pro' ); ?>">?</span>
+								</label>
+							</div>
+						</div>
 					</div>
 
-					<!-- Logs détaillés -->
-					<div id="argp-progress-logs" class="argp-progress-logs">
-						<!-- Les logs seront ajoutés ici par JS -->
-					</div>
-
-					<!-- Bouton d'annulation -->
-					<p class="submit">
-						<button type="button" id="argp-cancel-generation" class="button button-secondary">
-							<span class="dashicons dashicons-no" style="margin-top: 4px;"></span>
-							<?php esc_html_e( 'Annuler', 'ai-recipe-generator-pro' ); ?>
+					<!-- BOUTON GÉNÉRATION -->
+					<div class="argp-generate-action">
+						<button type="submit" form="argp-generate-form" class="argp-btn argp-btn-primary argp-btn-large" id="argp-generate-submit">
+							<span class="dashicons dashicons-admin-post"></span>
+							<?php esc_html_e( 'Générer l\'article complet', 'ai-recipe-generator-pro' ); ?>
 						</button>
-					</p>
+					</div>
+
+					<!-- ZONE PROGRESSION -->
+					<div id="argp-progress-container" class="argp-card argp-card-progress" style="display: none;">
+						<div class="argp-card-header">
+							<h2><?php esc_html_e( '⚙️ Génération en cours...', 'ai-recipe-generator-pro' ); ?></h2>
+						</div>
+						<div class="argp-card-body">
+							<div class="argp-progress-bar-wrapper">
+								<div class="argp-progress-bar">
+									<div id="argp-progress-bar-fill" class="argp-progress-bar-fill" style="width: 0%;">
+										<span id="argp-progress-percent" class="argp-progress-percent">0%</span>
+									</div>
+								</div>
+							</div>
+
+							<div id="argp-progress-status" class="argp-progress-status">
+								<?php esc_html_e( 'Initialisation...', 'ai-recipe-generator-pro' ); ?>
+							</div>
+
+							<div id="argp-progress-logs" class="argp-progress-logs" aria-live="polite"></div>
+
+							<p class="argp-cancel-wrapper">
+								<button type="button" id="argp-cancel-generation" class="argp-btn argp-btn-secondary">
+									<span class="dashicons dashicons-no"></span>
+									<?php esc_html_e( 'Annuler', 'ai-recipe-generator-pro' ); ?>
+								</button>
+							</p>
+						</div>
+					</div>
+
+					<!-- ZONE RÉSULTATS -->
+					<div id="argp-results-container" class="argp-card argp-card-results" style="display: none;">
+						<div class="argp-card-header">
+							<h2><?php esc_html_e( '✅ Génération terminée !', 'ai-recipe-generator-pro' ); ?></h2>
+						</div>
+						<div class="argp-card-body">
+							<div id="argp-results-content"></div>
+						</div>
+					</div>
 				</div>
 
-				<!-- PHASE 3: Zone de résultats -->
-				<div id="argp-results-container" class="argp-results-container" style="display: none;">
-					<h2><?php esc_html_e( 'Génération terminée !', 'ai-recipe-generator-pro' ); ?></h2>
-					<div id="argp-results-content">
-						<!-- Résultats AJAX ici -->
+				<!-- SIDEBAR ESTIMATION -->
+				<div class="argp-sidebar-column">
+					<div class="argp-sidebar-sticky">
+						<!-- CARTE ESTIMATION -->
+						<div class="argp-card argp-card-estimation">
+							<div class="argp-card-header">
+								<h3><?php esc_html_e( '📊 Estimation', 'ai-recipe-generator-pro' ); ?></h3>
+							</div>
+							<div class="argp-card-body">
+								<div class="argp-estimation-item">
+									<div class="argp-estimation-icon">🍽️</div>
+									<div class="argp-estimation-content">
+										<div class="argp-estimation-label"><?php esc_html_e( 'Recettes', 'ai-recipe-generator-pro' ); ?></div>
+										<div class="argp-estimation-value" id="argp-est-recipes">–</div>
+									</div>
+								</div>
+
+								<div class="argp-estimation-item">
+									<div class="argp-estimation-icon">💰</div>
+									<div class="argp-estimation-content">
+										<div class="argp-estimation-label"><?php esc_html_e( 'Coût estimé', 'ai-recipe-generator-pro' ); ?></div>
+										<div class="argp-estimation-value" id="argp-est-cost">$0.00</div>
+									</div>
+								</div>
+
+								<div class="argp-estimation-item">
+									<div class="argp-estimation-icon">⏱️</div>
+									<div class="argp-estimation-content">
+										<div class="argp-estimation-label"><?php esc_html_e( 'Temps estimé', 'ai-recipe-generator-pro' ); ?></div>
+										<div class="argp-estimation-value" id="argp-est-time">0 min</div>
+									</div>
+								</div>
+
+								<div class="argp-estimation-footer">
+									<p><?php esc_html_e( 'Estimation basée sur vos paramètres actuels', 'ai-recipe-generator-pro' ); ?></p>
+								</div>
+							</div>
+						</div>
+
+						<!-- CARTE AIDE -->
+						<div class="argp-card argp-card-help">
+							<div class="argp-card-header">
+								<h3><?php esc_html_e( '💡 Aide rapide', 'ai-recipe-generator-pro' ); ?></h3>
+							</div>
+							<div class="argp-card-body">
+								<ul class="argp-help-list">
+									<li><?php esc_html_e( 'Le nombre de recettes est détecté automatiquement depuis le titre', 'ai-recipe-generator-pro' ); ?></li>
+									<li><?php esc_html_e( 'Utilisez "Suggérer" pour des titres basés sur votre blog', 'ai-recipe-generator-pro' ); ?></li>
+									<li><?php esc_html_e( 'Utilisez "Nouveau thème" pour découvrir des tendances', 'ai-recipe-generator-pro' ); ?></li>
+									<li><?php esc_html_e( 'Les images de référence sont optionnelles', 'ai-recipe-generator-pro' ); ?></li>
+								</ul>
+							</div>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -326,32 +441,41 @@ class ARGP_Admin {
 		}
 
 		?>
-		<div class="wrap argp-admin-page">
-			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+		<div class="wrap argp-admin-page argp-premium-ui">
+			<h1 class="argp-page-title">
+				<span class="dashicons dashicons-admin-settings"></span>
+				<?php echo esc_html( get_admin_page_title() ); ?>
+			</h1>
 
-			<div class="argp-settings-container">
+			<div class="argp-settings-layout">
 				<!-- Formulaire Settings API -->
-				<form method="post" action="options.php">
-					<?php
-					settings_fields( 'argp_settings_group' );
-					do_settings_sections( 'argp-settings' );
-					submit_button( __( 'Enregistrer les réglages', 'ai-recipe-generator-pro' ) );
-					?>
-				</form>
+				<div class="argp-card">
+					<div class="argp-card-body">
+						<form method="post" action="options.php">
+							<?php
+							settings_fields( 'argp_settings_group' );
+							do_settings_sections( 'argp-settings' );
+							submit_button( __( 'Enregistrer les réglages', 'ai-recipe-generator-pro' ) );
+							?>
+						</form>
+					</div>
+				</div>
 
 				<!-- Section Diagnostics -->
-				<div class="argp-diagnostics-section">
-					<h2><?php esc_html_e( 'Diagnostics système', 'ai-recipe-generator-pro' ); ?></h2>
-					<p class="description">
-						<?php esc_html_e( 'Vérifiez que votre serveur est correctement configuré pour utiliser le plugin.', 'ai-recipe-generator-pro' ); ?>
-					</p>
+				<div class="argp-card">
+					<div class="argp-card-header">
+						<h2><?php esc_html_e( '🔧 Diagnostics système', 'ai-recipe-generator-pro' ); ?></h2>
+					</div>
+					<div class="argp-card-body">
+						<p class="description">
+							<?php esc_html_e( 'Vérifiez que votre serveur est correctement configuré pour utiliser le plugin.', 'ai-recipe-generator-pro' ); ?>
+						</p>
 
-					<button type="button" id="argp-run-diagnostics" class="button button-secondary">
-						<?php esc_html_e( 'Lancer le test', 'ai-recipe-generator-pro' ); ?>
-					</button>
+						<button type="button" id="argp-run-diagnostics" class="button button-secondary">
+							<?php esc_html_e( 'Lancer le test', 'ai-recipe-generator-pro' ); ?>
+						</button>
 
-					<div id="argp-diagnostics-results" class="argp-diagnostics-results" style="display: none;">
-						<!-- Les résultats seront insérés ici par AJAX -->
+						<div id="argp-diagnostics-results" class="argp-diagnostics-results" style="display: none;"></div>
 					</div>
 				</div>
 			</div>

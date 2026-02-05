@@ -60,6 +60,12 @@ class ARGP_Ajax {
 
 		// PHASE 5: Hook pour récupérer job en cours
 		add_action( 'wp_ajax_argp_get_current_job', array( $this, 'handle_get_current_job' ) );
+
+		// UX PREMIUM: Hooks pour tests API et crédits
+		add_action( 'wp_ajax_argp_test_api', array( $this, 'handle_test_api' ) );
+		add_action( 'wp_ajax_argp_get_api_credits', array( $this, 'handle_get_api_credits' ) );
+		add_action( 'wp_ajax_argp_new_theme_suggest', array( $this, 'handle_new_theme_suggest' ) );
+		add_action( 'wp_ajax_argp_auto_suggest_title', array( $this, 'handle_auto_suggest_title' ) );
 	}
 
 	/**
@@ -1399,5 +1405,304 @@ class ARGP_Ajax {
 		}
 
 		return true;
+	}
+
+	/* ========================================
+	   UX PREMIUM: TEST API & CRÉDITS
+	   ======================================== */
+
+	/**
+	 * Handler AJAX : Tester une API
+	 */
+	public function handle_test_api() {
+		$this->check_ajax_security();
+
+		$api_name = isset( $_POST['api'] ) ? sanitize_text_field( wp_unslash( $_POST['api'] ) ) : '';
+
+		if ( 'openai' === $api_name ) {
+			$result = $this->test_openai_api();
+		} elseif ( 'replicate' === $api_name ) {
+			$result = $this->test_replicate_api();
+		} else {
+			wp_send_json_error( array( 'message' => 'API non reconnue' ) );
+		}
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+		}
+
+		wp_send_json_success( $result );
+	}
+
+	/**
+	 * Teste l'API OpenAI
+	 */
+	private function test_openai_api() {
+		$api_key = ARGP_Settings::get_decrypted_key( 'openai_api_key' );
+
+		if ( empty( $api_key ) ) {
+			return new WP_Error( 'no_key', __( 'Aucune clé API configurée', 'ai-recipe-generator-pro' ) );
+		}
+
+		$response = wp_remote_get(
+			'https://api.openai.com/v1/models',
+			array(
+				'timeout' => 10,
+				'headers' => array(
+					'Authorization' => 'Bearer ' . $api_key,
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+
+		if ( 200 === $code ) {
+			return array(
+				'status'  => 'success',
+				'message' => __( '✅ API fonctionnelle', 'ai-recipe-generator-pro' ),
+			);
+		} elseif ( 401 === $code ) {
+			return new WP_Error( 'invalid_key', __( '❌ Clé API invalide', 'ai-recipe-generator-pro' ) );
+		} else {
+			return new WP_Error( 'api_error', __( '⚠️ API inaccessible ou timeout', 'ai-recipe-generator-pro' ) );
+		}
+	}
+
+	/**
+	 * Teste l'API Replicate
+	 */
+	private function test_replicate_api() {
+		$api_key = ARGP_Settings::get_decrypted_key( 'replicate_api_key' );
+
+		if ( empty( $api_key ) ) {
+			return new WP_Error( 'no_key', __( 'Aucune clé API configurée', 'ai-recipe-generator-pro' ) );
+		}
+
+		$response = wp_remote_get(
+			'https://api.replicate.com/v1/predictions',
+			array(
+				'timeout' => 10,
+				'headers' => array(
+					'Authorization' => 'Token ' . $api_key,
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+
+		if ( 200 === $code ) {
+			return array(
+				'status'  => 'success',
+				'message' => __( '✅ API fonctionnelle', 'ai-recipe-generator-pro' ),
+			);
+		} elseif ( 401 === $code ) {
+			return new WP_Error( 'invalid_key', __( '❌ Clé API invalide', 'ai-recipe-generator-pro' ) );
+		} else {
+			return new WP_Error( 'api_error', __( '⚠️ API inaccessible ou timeout', 'ai-recipe-generator-pro' ) );
+		}
+	}
+
+	/**
+	 * Handler AJAX : Récupérer les crédits API
+	 */
+	public function handle_get_api_credits() {
+		$this->check_ajax_security();
+
+		$api_name = isset( $_POST['api'] ) ? sanitize_text_field( wp_unslash( $_POST['api'] ) ) : '';
+
+		// Note: Les APIs ne fournissent pas toujours les crédits via API
+		// C'est un placeholder pour future implémentation
+		wp_send_json_success(
+			array(
+				'available' => false,
+				'message'   => __( 'Vérification des crédits non disponible via API. Consultez votre tableau de bord OpenAI/Replicate.', 'ai-recipe-generator-pro' ),
+			)
+		);
+	}
+
+	/**
+	 * Handler AJAX : Suggérer un nouveau thème inédit
+	 */
+	public function handle_new_theme_suggest() {
+		$this->check_ajax_security();
+
+		// Vérifier la clé API
+		$openai_key = ARGP_Settings::get_decrypted_key( 'openai_api_key' );
+		if ( empty( $openai_key ) ) {
+			wp_send_json_error(
+				array(
+					'message' => __( 'Clé API OpenAI non configurée.', 'ai-recipe-generator-pro' ),
+				)
+			);
+		}
+
+		// Appeler OpenAI pour des thèmes inédits
+		$result = $this->openai_new_theme_suggest();
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error(
+				array(
+					'message' => $result->get_error_message(),
+				)
+			);
+		}
+
+		wp_send_json_success(
+			array(
+				'themes'  => $result,
+				'message' => __( 'Nouveaux thèmes générés avec succès.', 'ai-recipe-generator-pro' ),
+			)
+		);
+	}
+
+	/**
+	 * Génère des thèmes inédits avec OpenAI
+	 */
+	private function openai_new_theme_suggest() {
+		$api_key = ARGP_Settings::get_decrypted_key( 'openai_api_key' );
+
+		$system_prompt = "Tu es un expert en tendances culinaires et en contenu viral. " .
+			"Tu proposes des thèmes d'articles de recettes innovants, originaux et tendance. " .
+			"Tu ne te bases sur AUCUN historique, tu explores des niches peu exploitées, " .
+			"des tendances émergentes, la saisonnalité, ou des angles uniques.";
+
+		$user_prompt = "Propose 3 titres d'articles de recettes complètement inédits et tendance.\n\n" .
+			"Critères :\n" .
+			"- Titres originaux (pas de classiques vus partout)\n" .
+			"- Tendances actuelles ou saisonnalité\n" .
+			"- Niches peu exploitées\n" .
+			"- Format : inclure le nombre de recettes dans le titre (ex: \"7 recettes...\")\n" .
+			"- Entre 50 et 75 caractères\n" .
+			"- En français\n\n" .
+			"Réponds UNIQUEMENT avec un JSON : {\"themes\": [\"Titre 1\", \"Titre 2\", \"Titre 3\"]}";
+
+		$body = array(
+			'model'       => 'gpt-4o',
+			'messages'    => array(
+				array(
+					'role'    => 'system',
+					'content' => $system_prompt,
+				),
+				array(
+					'role'    => 'user',
+					'content' => $user_prompt,
+				),
+			),
+			'temperature' => 0.9,
+			'max_tokens'  => 500,
+			'response_format' => array(
+				'type' => 'json_object',
+			),
+		);
+
+		$response = wp_remote_post(
+			'https://api.openai.com/v1/chat/completions',
+			array(
+				'timeout' => 20,
+				'headers' => array(
+					'Content-Type'  => 'application/json',
+					'Authorization' => 'Bearer ' . $api_key,
+				),
+				'body'    => wp_json_encode( $body ),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$http_code = wp_remote_retrieve_response_code( $response );
+		if ( 200 !== $http_code ) {
+			return new WP_Error( 'openai_error', 'Erreur API OpenAI' );
+		}
+
+		$body_data = json_decode( wp_remote_retrieve_body( $response ), true );
+		$content = $body_data['choices'][0]['message']['content'] ?? '';
+		$themes_data = json_decode( $content, true );
+
+		if ( isset( $themes_data['themes'] ) && is_array( $themes_data['themes'] ) ) {
+			return array_slice( $themes_data['themes'], 0, 3 );
+		}
+
+		return new WP_Error( 'parse_error', 'Impossible de parser la réponse' );
+	}
+
+	/**
+	 * Handler AJAX : Suggestion automatique au chargement
+	 */
+	public function handle_auto_suggest_title() {
+		$this->check_ajax_security();
+
+		$subject = isset( $_POST['subject'] ) ? sanitize_text_field( wp_unslash( $_POST['subject'] ) ) : '';
+
+		if ( empty( $subject ) ) {
+			$subject = 'recettes'; // Défaut si vide
+		}
+
+		// Récupérer 1 seule suggestion
+		$manual_titles = array();
+		$recent_titles = $this->get_recent_post_titles( 5 );
+
+		$result = $this->openai_suggest_single_title( $subject, $recent_titles, $manual_titles );
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+		}
+
+		wp_send_json_success( array( 'title' => $result ) );
+	}
+
+	/**
+	 * Génère UNE suggestion de titre
+	 */
+	private function openai_suggest_single_title( $subject, $recent_titles, $manual_titles ) {
+		$api_key = ARGP_Settings::get_decrypted_key( 'openai_api_key' );
+
+		$system_prompt = "Tu es un rédacteur SEO food. Génère UN seul titre d'article accrocheur, " .
+			"50-75 caractères, incluant un nombre de recettes (ex: '10 recettes...'). En français.";
+
+		$user_prompt = "Thème : {$subject}\n\nGénère UN titre accrocheur avec nombre de recettes inclus.\n" .
+			"Format JSON : {\"title\": \"Titre ici\"}";
+
+		$body = array(
+			'model'    => 'gpt-4o',
+			'messages' => array(
+				array( 'role' => 'system', 'content' => $system_prompt ),
+				array( 'role' => 'user', 'content' => $user_prompt ),
+			),
+			'temperature' => 0.8,
+			'max_tokens'  => 150,
+			'response_format' => array( 'type' => 'json_object' ),
+		);
+
+		$response = wp_remote_post(
+			'https://api.openai.com/v1/chat/completions',
+			array(
+				'timeout' => 15,
+				'headers' => array(
+					'Content-Type'  => 'application/json',
+					'Authorization' => 'Bearer ' . $api_key,
+				),
+				'body' => wp_json_encode( $body ),
+			)
+		);
+
+		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			return '5 recettes ' . $subject; // Fallback
+		}
+
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		$content = $data['choices'][0]['message']['content'] ?? '';
+		$json = json_decode( $content, true );
+
+		return $json['title'] ?? '5 recettes ' . $subject;
 	}
 }

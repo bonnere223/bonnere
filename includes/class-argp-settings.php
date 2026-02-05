@@ -172,21 +172,32 @@ class ARGP_Settings {
 		$masked  = ! empty( $value ) ? str_repeat( '•', 20 ) . substr( $value, -4 ) : '';
 
 		?>
-		<input 
-			type="password" 
-			id="argp_openai_api_key" 
-			name="<?php echo esc_attr( $this->option_name ); ?>[openai_api_key]" 
-			value="<?php echo esc_attr( $value ); ?>" 
-			class="regular-text argp-api-key-field"
-			placeholder="sk-..."
-			maxlength="200"
-		/>
-		<button type="button" class="button button-small argp-toggle-visibility" data-target="argp_openai_api_key">
-			<?php esc_html_e( 'Afficher', 'ai-recipe-generator-pro' ); ?>
-		</button>
-		<?php if ( ! empty( $value ) ) : ?>
-			<span class="argp-key-preview"><?php echo esc_html( $masked ); ?></span>
-		<?php endif; ?>
+		<div class="argp-api-key-wrapper">
+			<input 
+				type="password" 
+				id="argp_openai_api_key" 
+				name="<?php echo esc_attr( $this->option_name ); ?>[openai_api_key]" 
+				value="<?php echo esc_attr( $value ); ?>" 
+				class="regular-text argp-api-key-field"
+				placeholder="sk-..."
+				maxlength="200"
+			/>
+			<button type="button" class="button button-small argp-toggle-visibility" data-target="argp_openai_api_key">
+				<?php esc_html_e( 'Afficher', 'ai-recipe-generator-pro' ); ?>
+			</button>
+			<button type="button" class="button button-small argp-test-api" data-api="openai">
+				<?php esc_html_e( 'Tester l\'API', 'ai-recipe-generator-pro' ); ?>
+			</button>
+			<?php if ( ! empty( $value ) ) : ?>
+				<span class="argp-key-preview"><?php echo esc_html( $masked ); ?></span>
+			<?php endif; ?>
+			
+			<!-- Résultat test API -->
+			<div id="argp-openai-test-result" class="argp-api-test-result" style="display: none;"></div>
+			
+			<!-- Crédits API -->
+			<div id="argp-openai-credits" class="argp-api-credits" style="display: none;"></div>
+		</div>
 		<p class="description">
 			<?php
 			printf(
@@ -208,21 +219,32 @@ class ARGP_Settings {
 		$masked  = ! empty( $value ) ? str_repeat( '•', 20 ) . substr( $value, -4 ) : '';
 
 		?>
-		<input 
-			type="password" 
-			id="argp_replicate_api_key" 
-			name="<?php echo esc_attr( $this->option_name ); ?>[replicate_api_key]" 
-			value="<?php echo esc_attr( $value ); ?>" 
-			class="regular-text argp-api-key-field"
-			placeholder="r8_..."
-			maxlength="200"
-		/>
-		<button type="button" class="button button-small argp-toggle-visibility" data-target="argp_replicate_api_key">
-			<?php esc_html_e( 'Afficher', 'ai-recipe-generator-pro' ); ?>
-		</button>
-		<?php if ( ! empty( $value ) ) : ?>
-			<span class="argp-key-preview"><?php echo esc_html( $masked ); ?></span>
-		<?php endif; ?>
+		<div class="argp-api-key-wrapper">
+			<input 
+				type="password" 
+				id="argp_replicate_api_key" 
+				name="<?php echo esc_attr( $this->option_name ); ?>[replicate_api_key]" 
+				value="<?php echo esc_attr( $value ); ?>" 
+				class="regular-text argp-api-key-field"
+				placeholder="r8_..."
+				maxlength="200"
+			/>
+			<button type="button" class="button button-small argp-toggle-visibility" data-target="argp_replicate_api_key">
+				<?php esc_html_e( 'Afficher', 'ai-recipe-generator-pro' ); ?>
+			</button>
+			<button type="button" class="button button-small argp-test-api" data-api="replicate">
+				<?php esc_html_e( 'Tester l\'API', 'ai-recipe-generator-pro' ); ?>
+			</button>
+			<?php if ( ! empty( $value ) ) : ?>
+				<span class="argp-key-preview"><?php echo esc_html( $masked ); ?></span>
+			<?php endif; ?>
+			
+			<!-- Résultat test API -->
+			<div id="argp-replicate-test-result" class="argp-api-test-result" style="display: none;"></div>
+			
+			<!-- Crédits API -->
+			<div id="argp-replicate-credits" class="argp-api-credits" style="display: none;"></div>
+		</div>
 		<p class="description">
 			<?php
 			printf(

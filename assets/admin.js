@@ -1,5 +1,5 @@
 /**
- * Scripts Admin pour AI Recipe Generator Pro
+ * Scripts Admin pour AI Recipe Generator Pro - UX Premium
  *
  * @package AI_Recipe_Generator_Pro
  */
@@ -7,53 +7,55 @@
 (function($) {
 	'use strict';
 
-	/**
-	 * Objet principal ARGP Admin
-	 */
 	const ARGPAdmin = {
-		/**
-		 * Job ID actuel
-		 */
 		currentJobId: null,
-
-		/**
-		 * Interval pour le tick
-		 */
 		tickInterval: null,
+		detectedCount: 1,
 
-	/**
-	 * Initialisation
-	 */
-	init: function() {
-		this.bindEvents();
-		this.initToggleVisibility();
-		// PHASE 5: Vérifier s'il y a un job en cours à reprendre
-		this.checkForExistingJob();
-	},
-
-		/**
-		 * Lie les événements
-		 */
-		bindEvents: function() {
-			// Bouton "Lancer le test" (diagnostics)
-			$('#argp-run-diagnostics').on('click', this.runDiagnostics);
-
-			// Bouton "Suggérer" (titres)
-			$('#argp-suggest-title').on('click', this.suggestTitles);
-
-			// Clic sur une suggestion
-			$(document).on('click', '.argp-suggestion-item', this.selectSuggestion);
-
-			// PHASE 3: Soumettre le formulaire de génération
-			$('#argp-generate-form').on('submit', this.handleGenerateSubmit);
-
-			// PHASE 3: Annuler la génération
-			$('#argp-cancel-generation').on('click', this.handleCancelGeneration);
+		init: function() {
+			this.bindEvents();
+			this.initToggleVisibility();
+			this.checkForExistingJob();
+			this.autoSuggestTitle(); // Suggestion auto au chargement
+			this.initCollapsibles();
+			this.updateEstimation(); // Estimation initiale
 		},
 
-		/**
-		 * Initialise les boutons "Afficher/Masquer" pour les clés API
-		 */
+		bindEvents: function() {
+			// Diagnostics
+			$('#argp-run-diagnostics').on('click', this.runDiagnostics);
+
+			// Suggestions
+			$('#argp-suggest-title').on('click', this.suggestTitles);
+			$('#argp-new-theme').on('click', this.suggestNewTheme);
+			$(document).on('click', '.argp-suggestion-item, .argp-theme-item', this.selectSuggestion);
+
+			// Génération
+			$('#argp-generate-form').on('submit', this.handleGenerateSubmit);
+			$('#argp-cancel-generation').on('click', this.handleCancelGeneration);
+
+			// Détection nombre recettes dans titre
+			$('#argp_title').on('input', this.detectRecipeCount);
+			$('#argp_subject').on('input', this.updateEstimation.bind(this));
+
+			// Test API
+			$('.argp-test-api').on('click', this.testAPI);
+
+			// Upload ZIP
+			$('#argp-upload-zip').on('click', function() {
+				$('#argp-zip-input').click();
+			});
+			$('#argp-zip-input').on('change', this.handleZipUpload);
+		},
+
+		initCollapsibles: function() {
+			$('.argp-collapsible').on('click', function() {
+				const target = $(this).data('target');
+				$('#' + target).slideToggle();
+				$(this).find('.argp-toggle-icon').toggleClass('dashicons-arrow-down-alt2 dashicons-arrow-up-alt2');
+			});
+		},
+
 		initToggleVisibility: function() {
 			$('.argp-toggle-visibility').on('click', function(e) {
 				e.preventDefault();
@@ -62,116 +64,173 @@
 				
 				if ($input.attr('type') === 'password') {
 					$input.attr('type', 'text');
-					$(this).text(argpAdmin.strings.hide || 'Masquer');
+					$(this).text('Masquer');
 				} else {
 					$input.attr('type', 'password');
-					$(this).text(argpAdmin.strings.show || 'Afficher');
+					$(this).text('Afficher');
 				}
 			});
 		},
 
-		/**
-		 * Lance les diagnostics système (AJAX)
-		 */
-		runDiagnostics: function(e) {
-			e.preventDefault();
+		/* ========================================
+		   DÉTECTION AUTO NOMBRE RECETTES
+		   ======================================== */
 
-			const $button = $(this);
-			const $resultsContainer = $('#argp-diagnostics-results');
-			const originalText = $button.text();
+		detectRecipeCount: function() {
+			const title = $('#argp_title').val();
+			
+			// Regex pour détecter nombres (1-10)
+			const matches = title.match(/(\d+)\s*(recettes?|plats?|desserts?|entrées?)/i);
+			
+			if (matches) {
+				let count = parseInt(matches[1], 10);
+				count = Math.max(1, Math.min(10, count)); // Clamp 1-10
+				
+				ARGPAdmin.detectedCount = count;
+				$('#argp_count').val(count);
+				$('#argp-detected-count-text').text(count + ' recette(s) détectée(s)');
+				$('#argp-detected-count').fadeIn();
+				
+				// Mettre à jour estimation
+				ARGPAdmin.updateEstimation();
+				
+				// Générer les champs d'upload images
+				ARGPAdmin.generateImageUploadFields(count);
+			} else {
+				ARGPAdmin.detectedCount = 1;
+				$('#argp_count').val(1);
+				$('#argp-detected-count').fadeOut();
+				ARGPAdmin.updateEstimation();
+				ARGPAdmin.generateImageUploadFields(1);
+			}
+		},
 
-			// Désactiver le bouton et afficher un loader
-			$button.prop('disabled', true).text(argpAdmin.strings.testing);
+		generateImageUploadFields: function(count) {
+			const $container = $('#argp-reference-images-container');
+			let html = '';
 
-			// Requête AJAX
+			for (let i = 1; i <= count; i++) {
+				html += '<div class="argp-image-upload-field">';
+				html += '<label>Recette ' + i + '</label>';
+				html += '<input type="file" name="argp_ref_image_' + i + '" accept="image/*" class="argp-image-input" />';
+				html += '</div>';
+			}
+
+			$container.html(html);
+		},
+
+		handleZipUpload: function() {
+			const file = this.files[0];
+			if (file) {
+				ARGPAdmin.showNotice('info', 'ZIP uploadé : ' + file.name + '. Les images seront extraites lors de la génération.');
+			}
+		},
+
+		/* ========================================
+		   ESTIMATION TEMPS RÉEL
+		   ======================================== */
+
+		updateEstimation: function() {
+			const count = ARGPAdmin.detectedCount || 1;
+			const hasImages = true; // Toujours avec images pour l'instant
+
+			// Calcul coût
+			const costOpenAI = count * (argpAdmin.costs.openai_per_recipe || 0.03);
+			const costReplicate = hasImages ? count * (argpAdmin.costs.replicate_per_image || 0.04) : 0;
+			const totalCost = costOpenAI + costReplicate;
+
+			// Calcul temps (estimations approximatives)
+			const timeOpenAI = 15; // 15 secondes
+			const timePost = 1; // 1 seconde
+			const timePerImage = 30; // 30 secondes par image
+			const totalTime = timeOpenAI + timePost + (hasImages ? count * timePerImage : 0);
+			const timeMinutes = Math.ceil(totalTime / 60);
+
+			// Mise à jour UI
+			$('#argp-est-recipes').text(count);
+			$('#argp-est-cost').text('$' + totalCost.toFixed(2));
+			$('#argp-est-time').text(timeMinutes + ' min');
+		},
+
+		/* ========================================
+		   SUGGESTION AUTO AU CHARGEMENT
+		   ======================================== */
+
+		autoSuggestTitle: function() {
+			// Vérifier qu'on est sur la page Générer
+			if ($('#argp-generate-form').length === 0) {
+				return;
+			}
+
+			// Si le titre est déjà rempli, ne pas écraser
+			if ($('#argp_title').val().trim()) {
+				ARGPAdmin.detectRecipeCount();
+				return;
+			}
+
+			const subject = $('#argp_subject').val().trim() || 'recettes';
+
+			// Activer loading state
+			ARGPAdmin.setTitleLoading(true);
+
 			$.ajax({
 				url: argpAdmin.ajaxUrl,
 				type: 'POST',
 				data: {
-					action: 'argp_run_diagnostics',
-					nonce: argpAdmin.nonce
+					action: 'argp_auto_suggest_title',
+					nonce: argpAdmin.nonce,
+					subject: subject
 				},
 				success: function(response) {
-					if (response.success && response.data.results) {
-						ARGPAdmin.displayDiagnosticsResults(response.data.results);
-					} else {
-						ARGPAdmin.showError($resultsContainer, response.data.message || argpAdmin.strings.error);
+					if (response.success && response.data.title) {
+						$('#argp_title').val(response.data.title);
+						ARGPAdmin.detectRecipeCount();
 					}
 				},
-				error: function(xhr, status, error) {
-					ARGPAdmin.showError($resultsContainer, 'Erreur AJAX : ' + error);
-				},
 				complete: function() {
-					// Réactiver le bouton
-					$button.prop('disabled', false).text(originalText);
+					ARGPAdmin.setTitleLoading(false);
 				}
 			});
 		},
 
-		/**
-		 * Affiche les résultats des diagnostics
-		 *
-		 * @param {Object} results Résultats des tests
-		 */
-		displayDiagnosticsResults: function(results) {
-			const $container = $('#argp-diagnostics-results');
-			let html = '<div class="argp-diagnostics-badges">';
+		/* ========================================
+		   LOADING STATE DU TITRE
+		   ======================================== */
 
-			// Parcourir chaque résultat
-			$.each(results, function(key, result) {
-				const statusClass = 'argp-badge-' + result.status;
-				const icon = result.status === 'success' ? '✓' : (result.status === 'error' ? '✗' : '⚠');
+		setTitleLoading: function(loading) {
+			const $input = $('#argp_title');
+			const $loader = $('.argp-title-loading-bar');
 
-				html += '<div class="argp-diagnostic-item">';
-				html += '<div class="argp-badge ' + statusClass + '">';
-				html += '<span class="argp-badge-icon">' + icon + '</span>';
-				html += '<span class="argp-badge-label">' + result.label + '</span>';
-				html += '</div>';
-				html += '<div class="argp-diagnostic-message">' + result.message + '</div>';
-				
-				// Afficher les détails si disponibles
-				if (result.details) {
-					html += '<div class="argp-diagnostic-details">';
-					html += '<small>' + JSON.stringify(result.details, null, 2) + '</small>';
-					html += '</div>';
-				}
-				
-				html += '</div>';
-			});
-
-			html += '</div>';
-
-			$container.html(html).fadeIn();
+			if (loading) {
+				$input.prop('readonly', true).addClass('argp-title-loading');
+				$loader.fadeIn();
+			} else {
+				$input.prop('readonly', false).removeClass('argp-title-loading');
+				$loader.fadeOut();
+			}
 		},
 
-		/**
-		 * Suggère des titres (AJAX)
-		 */
+		/* ========================================
+		   SUGGESTIONS CLASSIQUES
+		   ======================================== */
+
 		suggestTitles: function(e) {
 			e.preventDefault();
 
 			const $button = $(this);
-			const $suggestionsContainer = $('#argp-suggestions-container');
-			const $suggestionsList = $('#argp-suggestions-list');
 			const subject = $('#argp_subject').val().trim();
-			const originalText = $button.text();
+			const originalText = $button.html();
 
-			// Validation : vérifier que le sujet n'est pas vide
 			if (!subject) {
-				ARGPAdmin.showNotice('warning', 'Veuillez renseigner un Sujet/Thème avant de demander des suggestions.');
+				ARGPAdmin.showNotice('warning', 'Veuillez renseigner un Sujet/Thème.');
 				$('#argp_subject').focus();
 				return;
 			}
 
-			// Cacher les anciennes suggestions
-			$suggestionsContainer.hide();
-			$suggestionsList.empty();
+			ARGPAdmin.setTitleLoading(true);
+			$('#argp-suggestions-container').hide();
+			$button.prop('disabled', true);
 
-			// Désactiver le bouton et afficher l'état de chargement
-			$button.prop('disabled', true).addClass('argp-loading');
-			$button.html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span>' + argpAdmin.strings.generating);
-
-			// Requête AJAX
 			$.ajax({
 				url: argpAdmin.ajaxUrl,
 				type: 'POST',
@@ -182,125 +241,203 @@
 				},
 				success: function(response) {
 					if (response.success && response.data.suggestions) {
-						ARGPAdmin.displaySuggestions(response.data.suggestions);
-						
-						// Message de succès discret
-						if (response.data.context) {
-							const ctx = response.data.context;
-							console.log('Suggestions générées avec:', ctx);
-						}
+						ARGPAdmin.displaySuggestions(response.data.suggestions, 'suggestions');
 					} else {
-						// Erreur retournée par le serveur
-						const errorMsg = response.data && response.data.message 
-							? response.data.message 
-							: 'Erreur lors de la génération des suggestions.';
-						ARGPAdmin.showNotice('error', errorMsg);
-						$suggestionsContainer.hide();
+						ARGPAdmin.showNotice('error', response.data.message || 'Erreur');
 					}
 				},
-				error: function(xhr, status, error) {
-					// Erreur réseau ou timeout
-					let errorMsg = 'Erreur de connexion : ' + error;
-					
-					if (status === 'timeout') {
-						errorMsg = 'La requête a expiré. OpenAI met trop de temps à répondre. Réessayez.';
-					} else if (xhr.status === 0) {
-						errorMsg = 'Impossible de contacter le serveur. Vérifiez votre connexion.';
-					}
-					
-					ARGPAdmin.showNotice('error', errorMsg);
-					$suggestionsContainer.hide();
+				error: function() {
+					ARGPAdmin.showNotice('error', 'Erreur réseau');
 				},
 				complete: function() {
-					// Réactiver le bouton et retirer l'état de chargement
-					$button.prop('disabled', false).removeClass('argp-loading');
-					$button.html(originalText);
+					ARGPAdmin.setTitleLoading(false);
+					$button.prop('disabled', false).html(originalText);
 				}
 			});
 		},
 
-		/**
-		 * Affiche les suggestions de titres
-		 *
-		 * @param {Array} suggestions Liste des suggestions
-		 */
-		displaySuggestions: function(suggestions) {
-			const $container = $('#argp-suggestions-container');
-			const $list = $('#argp-suggestions-list');
+		/* ========================================
+		   NOUVEAU THÈME
+		   ======================================== */
+
+		suggestNewTheme: function(e) {
+			e.preventDefault();
+
+			const $button = $(this);
+			const originalText = $button.html();
+
+			ARGPAdmin.setTitleLoading(true);
+			$('#argp-new-themes-container').hide();
+			$button.prop('disabled', true);
+
+			$.ajax({
+				url: argpAdmin.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'argp_new_theme_suggest',
+					nonce: argpAdmin.nonce
+				},
+				success: function(response) {
+					if (response.success && response.data.themes) {
+						ARGPAdmin.displaySuggestions(response.data.themes, 'themes');
+					} else {
+						ARGPAdmin.showNotice('error', response.data.message || 'Erreur');
+					}
+				},
+				error: function() {
+					ARGPAdmin.showNotice('error', 'Erreur réseau');
+				},
+				complete: function() {
+					ARGPAdmin.setTitleLoading(false);
+					$button.prop('disabled', false).html(originalText);
+				}
+			});
+		},
+
+		displaySuggestions: function(items, type) {
+			const isTheme = type === 'themes';
+			const $container = isTheme ? $('#argp-new-themes-container') : $('#argp-suggestions-container');
+			const $list = isTheme ? $('#argp-new-themes-list') : $('#argp-suggestions-list');
+			const itemClass = isTheme ? 'argp-theme-item' : 'argp-suggestion-item';
 
 			let html = '';
-
-			suggestions.forEach(function(suggestion, index) {
-				html += '<div class="argp-suggestion-item" data-title="' + ARGPAdmin.escapeHtml(suggestion) + '">';
-				html += '<span class="argp-suggestion-number">' + (index + 1) + '</span>';
-				html += '<span class="argp-suggestion-text">' + ARGPAdmin.escapeHtml(suggestion) + '</span>';
-				html += '</div>';
+			items.forEach(function(item, index) {
+				html += '<button type="button" class="' + itemClass + '" data-title="' + ARGPAdmin.escapeHtml(item) + '">';
+				html += '<span class="argp-item-number">' + (index + 1) + '</span>';
+				html += '<span class="argp-item-text">' + ARGPAdmin.escapeHtml(item) + '</span>';
+				html += '</button>';
 			});
 
 			$list.html(html);
 			$container.fadeIn();
 		},
 
-		/**
-		 * Sélectionne une suggestion et remplit le champ titre
-		 */
 		selectSuggestion: function() {
 			const title = $(this).data('title');
 			$('#argp_title').val(title);
-
-			// Ajouter une classe "selected" temporaire
-			$('.argp-suggestion-item').removeClass('argp-selected');
+			$('.argp-suggestion-item, .argp-theme-item').removeClass('argp-selected');
 			$(this).addClass('argp-selected');
-
-			// Feedback visuel
-			ARGPAdmin.showNotice('success', 'Titre sélectionné : ' + title);
+			ARGPAdmin.detectRecipeCount();
+			ARGPAdmin.showNotice('success', 'Titre sélectionné');
 		},
 
 		/* ========================================
-		   PHASE 3: GÉNÉRATION COMPLÈTE
+		   TEST API
 		   ======================================== */
 
-		/**
-		 * Handler pour soumettre le formulaire de génération
-		 */
+		testAPI: function() {
+			const $button = $(this);
+			const apiName = $button.data('api');
+			const $result = $('#argp-' + apiName + '-test-result');
+			const originalText = $button.text();
+
+			$button.prop('disabled', true).text('Test...');
+			$result.hide();
+
+			$.ajax({
+				url: argpAdmin.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'argp_test_api',
+					nonce: argpAdmin.nonce,
+					api: apiName
+				},
+				success: function(response) {
+					if (response.success) {
+						$result.html('<span class="argp-api-success">' + response.data.message + '</span>').fadeIn();
+					} else {
+						$result.html('<span class="argp-api-error">' + response.data.message + '</span>').fadeIn();
+					}
+				},
+				error: function() {
+					$result.html('<span class="argp-api-error">⚠️ Erreur réseau</span>').fadeIn();
+				},
+				complete: function() {
+					$button.prop('disabled', false).text(originalText);
+					setTimeout(function() {
+						$result.fadeOut();
+					}, 5000);
+				}
+			});
+		},
+
+		/* ========================================
+		   DIAGNOSTICS (CONSERVÉ)
+		   ======================================== */
+
+		runDiagnostics: function(e) {
+			e.preventDefault();
+			const $button = $(this);
+			const originalText = $button.text();
+			$button.prop('disabled', true).text('Test en cours...');
+
+			$.ajax({
+				url: argpAdmin.ajaxUrl,
+				type: 'POST',
+				data: {
+					action: 'argp_run_diagnostics',
+					nonce: argpAdmin.nonce
+				},
+				success: function(response) {
+					if (response.success && response.data.results) {
+						ARGPAdmin.displayDiagnosticsResults(response.data.results);
+					}
+				},
+				complete: function() {
+					$button.prop('disabled', false).text(originalText);
+				}
+			});
+		},
+
+		displayDiagnosticsResults: function(results) {
+			const $container = $('#argp-diagnostics-results');
+			let html = '<div class="argp-diagnostics-badges">';
+
+			$.each(results, function(key, result) {
+				const statusClass = 'argp-badge-' + result.status;
+				const icon = result.status === 'success' ? '✓' : (result.status === 'error' ? '✗' : '⚠');
+
+				html += '<div class="argp-diagnostic-item">';
+				html += '<div class="argp-badge ' + statusClass + '">';
+				html += '<span class="argp-badge-icon">' + icon + '</span>';
+				html += '<span class="argp-badge-label">' + result.label + '</span>';
+				html += '</div>';
+				html += '<div class="argp-diagnostic-message">' + result.message + '</div>';
+				html += '</div>';
+			});
+
+			html += '</div>';
+			$container.html(html).fadeIn();
+		},
+
+		/* ========================================
+		   GÉNÉRATION (CONSERVÉ + AMÉLIORATIONS)
+		   ======================================== */
+
 		handleGenerateSubmit: function(e) {
 			e.preventDefault();
 
-			// Récupérer les valeurs du formulaire
 			const subject = $('#argp_subject').val().trim();
 			const count = $('#argp_count').val();
 			const title = $('#argp_title').val().trim();
 			const status = $('#argp_status').val();
 
-			// Validation
 			if (!subject) {
-				ARGPAdmin.showNotice('warning', 'Le champ Sujet/Thème est requis.');
+				ARGPAdmin.showNotice('warning', 'Le sujet est requis.');
 				$('#argp_subject').focus();
 				return;
 			}
 
-			// PHASE 5: Désactiver le bouton submit avec aria-busy
-			const $submitBtn = $('#argp-generate-submit');
-			$submitBtn.prop('disabled', true).attr('aria-busy', 'true');
-
-			// Désactiver le formulaire
-			$('#argp-generate-form').hide();
-
-			// Afficher la zone de progression
+			$('#argp-generate-form').parent().hide();
 			$('#argp-progress-container').show();
 			$('#argp-results-container').hide();
 
-			// Réinitialiser la progression
 			ARGPAdmin.updateProgress(0, 'Initialisation...');
-			$('#argp-progress-logs').empty().attr('aria-live', 'polite');
+			$('#argp-progress-logs').empty();
 
-			// Démarrer la génération
 			ARGPAdmin.startGeneration(subject, count, title, status);
 		},
 
-		/**
-		 * Démarre la génération (appel AJAX start_generation)
-		 */
 		startGeneration: function(subject, count, title, status) {
 			$.ajax({
 				url: argpAdmin.ajaxUrl,
@@ -317,14 +454,9 @@
 					if (response.success && response.data.job_id) {
 						ARGPAdmin.currentJobId = response.data.job_id;
 						ARGPAdmin.addLog('✓ Génération démarrée', 'success');
-						
-						// Démarrer le tick loop
 						ARGPAdmin.startTickLoop();
 					} else {
-						const errorMsg = response.data && response.data.message 
-							? response.data.message 
-							: 'Erreur lors du démarrage de la génération.';
-						ARGPAdmin.handleGenerationError(errorMsg);
+						ARGPAdmin.handleGenerationError(response.data.message || 'Erreur');
 					}
 				},
 				error: function(xhr, status, error) {
@@ -333,22 +465,13 @@
 			});
 		},
 
-		/**
-		 * Démarre le tick loop (polling)
-		 */
 		startTickLoop: function() {
-			// Tick toutes les 2 secondes
 			ARGPAdmin.tickInterval = setInterval(function() {
 				ARGPAdmin.tick();
 			}, 2000);
-
-			// Faire le premier tick immédiatement
 			ARGPAdmin.tick();
 		},
 
-		/**
-		 * Exécute un tick (avance le job d'une étape)
-		 */
 		tick: function() {
 			if (!ARGPAdmin.currentJobId) {
 				ARGPAdmin.stopTickLoop();
@@ -366,34 +489,25 @@
 				success: function(response) {
 					if (response.success && response.data) {
 						const data = response.data;
-
-						// Mettre à jour la progression
 						ARGPAdmin.updateProgress(data.progress, data.message);
 						ARGPAdmin.addLog(data.message, data.error ? 'error' : 'info');
 
-						// Si le job est terminé
 						if (data.done) {
 							ARGPAdmin.stopTickLoop();
 							ARGPAdmin.handleGenerationComplete(data);
 						}
 					} else {
-						const errorMsg = response.data && response.data.message 
-							? response.data.message 
-							: 'Erreur lors du tick.';
 						ARGPAdmin.stopTickLoop();
-						ARGPAdmin.handleGenerationError(errorMsg);
+						ARGPAdmin.handleGenerationError(response.data.message || 'Erreur');
 					}
 				},
-				error: function(xhr, status, error) {
+				error: function() {
 					ARGPAdmin.stopTickLoop();
-					ARGPAdmin.handleGenerationError('Erreur réseau lors du tick : ' + error);
+					ARGPAdmin.handleGenerationError('Erreur réseau');
 				}
 			});
 		},
 
-		/**
-		 * Arrête le tick loop
-		 */
 		stopTickLoop: function() {
 			if (ARGPAdmin.tickInterval) {
 				clearInterval(ARGPAdmin.tickInterval);
@@ -401,150 +515,75 @@
 			}
 		},
 
-		/**
-		 * Met à jour la barre de progression
-		 *
-		 * @param {number} percent Pourcentage (0-100)
-		 * @param {string} message Message de statut
-		 */
 		updateProgress: function(percent, message) {
-			// PHASE 5: Clamp pourcentage 0-100
 			percent = Math.max(0, Math.min(100, percent));
-
 			$('#argp-progress-bar-fill').css('width', percent + '%');
 			$('#argp-progress-percent').text(Math.round(percent) + '%');
-			
-			// PHASE 5: Échapper le message pour XSS
 			$('#argp-progress-status').text(ARGPAdmin.escapeHtml(message));
 		},
 
-		/**
-		 * Ajoute un log
-		 *
-		 * @param {string} message Message du log
-		 * @param {string} type    Type : success, error, info
-		 */
 		addLog: function(message, type) {
 			type = type || 'info';
 			const timestamp = new Date().toLocaleTimeString();
 			const iconClass = type === 'success' ? 'dashicons-yes' : (type === 'error' ? 'dashicons-no' : 'dashicons-info');
 			
-			// PHASE 5: Échapper le message pour XSS
 			const $log = $('<div class="argp-log-entry argp-log-' + type + '">' +
 				'<span class="dashicons ' + iconClass + '"></span>' +
 				'<span class="argp-log-time">' + ARGPAdmin.escapeHtml(timestamp) + '</span>' +
 				'<span class="argp-log-message">' + ARGPAdmin.escapeHtml(message) + '</span>' +
 				'</div>');
 
-			// PHASE 5: Ajouter aria-live pour accessibilité
-			const $logsContainer = $('#argp-progress-logs');
-			if (!$logsContainer.attr('aria-live')) {
-				$logsContainer.attr('aria-live', 'polite');
-			}
-
-			$logsContainer.append($log);
-
-			// Scroll automatique vers le bas
-			$logsContainer.scrollTop($logsContainer[0].scrollHeight);
+			$('#argp-progress-logs').append($log).scrollTop($('#argp-progress-logs')[0].scrollHeight);
 		},
 
-		/**
-		 * Gère la fin de la génération (succès)
-		 *
-		 * @param {Object} data Données de résultat
-		 */
 		handleGenerationComplete: function(data) {
-			ARGPAdmin.addLog('✓ Génération terminée avec succès !', 'success');
-
-			// Masquer la zone de progression
+			ARGPAdmin.addLog('✓ Génération terminée !', 'success');
 			$('#argp-progress-container').hide();
-
-			// Afficher la zone de résultats
 			$('#argp-results-container').show();
 
 			let html = '<div class="notice notice-success inline"><p><strong>Article créé avec succès !</strong></p></div>';
 
-			if (data.post_id) {
-				html += '<p><strong>ID de l\'article :</strong> ' + data.post_id + '</p>';
-			}
-
 			if (data.edit_link) {
 				html += '<p class="argp-result-actions">';
 				html += '<a href="' + data.edit_link + '" class="button button-primary button-large">';
-				html += '<span class="dashicons dashicons-edit" style="margin-top: 4px;"></span> ';
-				html += 'Modifier l\'article';
-				html += '</a>';
-				html += '</p>';
+				html += '<span class="dashicons dashicons-edit"></span> Modifier l\'article';
+				html += '</a></p>';
 			}
 
-			// Afficher les erreurs éventuelles
 			if (data.errors && data.errors.length > 0) {
-				html += '<div class="notice notice-warning inline" style="margin-top: 20px;">';
-				html += '<p><strong>Attention :</strong> Certaines étapes ont rencontré des problèmes :</p>';
-				html += '<ul style="margin-left: 20px;">';
+				html += '<div class="notice notice-warning inline" style="margin-top: 20px;"><p><strong>Attention :</strong> Certaines étapes ont rencontré des problèmes :</p><ul>';
 				data.errors.forEach(function(error) {
 					html += '<li>' + ARGPAdmin.escapeHtml(error) + '</li>';
 				});
-				html += '</ul>';
-				html += '</div>';
+				html += '</ul></div>';
 			}
 
-			// Bouton pour recommencer
-			html += '<p class="argp-result-actions" style="margin-top: 20px;">';
-			html += '<button type="button" id="argp-generate-another" class="button button-secondary">';
-			html += '<span class="dashicons dashicons-plus" style="margin-top: 4px;"></span> ';
-			html += 'Générer un autre article';
-			html += '</button>';
-			html += '</p>';
+			html += '<p class="argp-result-actions"><button type="button" id="argp-generate-another" class="button button-secondary">';
+			html += '<span class="dashicons dashicons-plus"></span> Générer un autre article</button></p>';
 
 			$('#argp-results-content').html(html);
 
-			// Bind du bouton "Générer un autre"
 			$('#argp-generate-another').on('click', function() {
 				location.reload();
 			});
 
-			// Réinitialiser
 			ARGPAdmin.currentJobId = null;
 		},
 
-		/**
-		 * Gère une erreur de génération
-		 *
-		 * @param {string} errorMessage Message d'erreur
-		 */
 		handleGenerationError: function(errorMessage) {
 			ARGPAdmin.addLog('✗ Erreur : ' + errorMessage, 'error');
-			ARGPAdmin.updateProgress(100, 'Erreur lors de la génération');
-
-			// Afficher le bouton pour réessayer
-			const $cancelBtn = $('#argp-cancel-generation');
-			$cancelBtn.html('<span class="dashicons dashicons-redo" style="margin-top: 4px;"></span> Réessayer');
-			$cancelBtn.off('click').on('click', function() {
-				location.reload();
-			});
-
 			ARGPAdmin.showNotice('error', errorMessage);
 		},
 
-		/**
-		 * Handler pour annuler la génération
-		 */
 		handleCancelGeneration: function(e) {
 			e.preventDefault();
 
-			if (!ARGPAdmin.currentJobId) {
+			if (!ARGPAdmin.currentJobId || !confirm('Annuler la génération en cours ?')) {
 				return;
 			}
 
-			if (!confirm('Êtes-vous sûr de vouloir annuler la génération en cours ?')) {
-				return;
-			}
-
-			// Arrêter le tick loop
 			ARGPAdmin.stopTickLoop();
 
-			// Appel AJAX pour annuler
 			$.ajax({
 				url: argpAdmin.ajaxUrl,
 				type: 'POST',
@@ -553,29 +592,19 @@
 					nonce: argpAdmin.nonce,
 					job_id: ARGPAdmin.currentJobId
 				},
-				success: function(response) {
-					ARGPAdmin.addLog('Génération annulée par l\'utilisateur', 'info');
+				success: function() {
+					ARGPAdmin.addLog('Génération annulée', 'info');
 					ARGPAdmin.currentJobId = null;
-
-					// Afficher le bouton pour recommencer
-					$('#argp-cancel-generation').hide();
-					ARGPAdmin.showNotice('info', 'Génération annulée. Rechargez la page pour recommencer.');
-				},
-				error: function() {
-					ARGPAdmin.showNotice('warning', 'Impossible d\'annuler la génération.');
+					ARGPAdmin.showNotice('info', 'Génération annulée.');
 				}
 			});
 		},
 
 		/* ========================================
-		   PHASE 5: REPRISE DE JOB
+		   REPRISE JOB (PHASE 5)
 		   ======================================== */
 
-		/**
-		 * Vérifie s'il y a un job en cours à reprendre
-		 */
 		checkForExistingJob: function() {
-			// Ne check que sur la page Générer
 			if ($('#argp-generate-form').length === 0) {
 				return;
 			}
@@ -589,34 +618,15 @@
 				},
 				success: function(response) {
 					if (response.success && response.data.has_job) {
-						// Il y a un job en cours - proposer reprise
 						const data = response.data;
-						const resumeMsg = 'Une génération est en cours (' + data.count + ' recette(s) sur "' + 
-							data.subject + '"). Voulez-vous reprendre ?';
-
-						if (confirm(resumeMsg)) {
-							// Reprendre le job
-							ARGPAdmin.showNotice('info', 'Reprise de la génération en cours...');
-							
-							// Masquer formulaire, afficher progression
-							$('#argp-generate-form').hide();
+						if (confirm('Une génération est en cours (' + data.count + ' recette(s)). Reprendre ?')) {
+							ARGPAdmin.showNotice('info', 'Reprise...');
+							$('#argp-generate-form').parent().hide();
 							$('#argp-progress-container').show();
-							$('#argp-results-container').hide();
-
-							// Restaurer job ID
 							ARGPAdmin.currentJobId = data.job_id;
-
-							// Démarrer tick loop
 							ARGPAdmin.startTickLoop();
-						} else {
-							// Annuler l'ancien job
-							ARGPAdmin.showNotice('info', 'Ancien job ignoré. Vous pouvez démarrer une nouvelle génération.');
 						}
 					}
-				},
-				error: function() {
-					// Silencieux - pas grave si échec
-					console.log('Vérification job existant échouée (normal si aucun job)');
 				}
 			});
 		},
@@ -625,28 +635,10 @@
 		   UTILITAIRES
 		   ======================================== */
 
-		/**
-		 * Affiche une erreur
-		 *
-		 * @param {jQuery} $container Conteneur
-		 * @param {string} message    Message d'erreur
-		 */
-		showError: function($container, message) {
-			const html = '<div class="notice notice-error inline"><p>' + ARGPAdmin.escapeHtml(message) + '</p></div>';
-			$container.html(html).fadeIn();
-		},
-
-		/**
-		 * Affiche une notice temporaire
-		 *
-		 * @param {string} type    Type (success, error, warning, info)
-		 * @param {string} message Message
-		 */
 		showNotice: function(type, message) {
 			const $notice = $('<div class="notice notice-' + type + ' is-dismissible"><p>' + message + '</p></div>');
-			$('.wrap').prepend($notice);
+			$('.argp-admin-page').prepend($notice);
 
-			// Auto-dismiss après 5 secondes
 			setTimeout(function() {
 				$notice.fadeOut(function() {
 					$(this).remove();
@@ -654,12 +646,6 @@
 			}, 5000);
 		},
 
-		/**
-		 * Échappe le HTML pour éviter les injections XSS
-		 *
-		 * @param {string} text Texte à échapper
-		 * @return {string} Texte échappé
-		 */
 		escapeHtml: function(text) {
 			const map = {
 				'&': '&amp;',
@@ -668,13 +654,10 @@
 				'"': '&quot;',
 				"'": '&#039;'
 			};
-			return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+			return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
 		}
 	};
 
-	/**
-	 * Initialisation au chargement du DOM
-	 */
 	$(document).ready(function() {
 		ARGPAdmin.init();
 	});
