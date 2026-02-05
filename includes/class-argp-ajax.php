@@ -221,16 +221,12 @@ class ARGP_Ajax {
 	public function handle_suggest_titles() {
 		$this->check_ajax_security();
 
-		// Récupérer et valider le sujet
+		// Récupérer et valider le sujet (optionnel)
 		$subject = isset( $_POST['subject'] ) ? sanitize_text_field( wp_unslash( $_POST['subject'] ) ) : '';
 
-		// Vérifier qu'un sujet est fourni
+		// Si pas de sujet, utiliser "recettes" par défaut
 		if ( empty( $subject ) ) {
-			wp_send_json_error(
-				array(
-					'message' => __( 'Le champ Sujet/Thème est requis pour générer des suggestions.', 'ai-recipe-generator-pro' ),
-				)
-			);
+			$subject = 'recettes';
 		}
 
 		// PHASE 5: Récupérer la clé API OpenAI déchiffrée

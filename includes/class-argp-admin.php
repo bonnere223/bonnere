@@ -235,6 +235,14 @@ class ARGP_Admin {
 										</button>
 									</div>
 
+									<!-- Option utiliser thème -->
+									<div style="margin-top: 10px;">
+										<label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #646970;">
+											<input type="checkbox" id="argp_use_subject" checked />
+											<?php esc_html_e( 'Utiliser le thème pour les suggestions (si vide, suggestions génériques)', 'ai-recipe-generator-pro' ); ?>
+										</label>
+									</div>
+
 									<!-- Nombre détecté -->
 									<div id="argp-detected-count" class="argp-detected-count" style="display: none;">
 										<span class="dashicons dashicons-yes-alt"></span>

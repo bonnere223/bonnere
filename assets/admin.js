@@ -224,13 +224,13 @@
 			e.preventDefault();
 
 			const $button = $(this);
-			const subject = $('#argp_subject').val().trim();
+			let subject = $('#argp_subject').val().trim();
 			const originalText = $button.html();
-
-			if (!subject) {
-				ARGPAdmin.showNotice('warning', 'Veuillez renseigner un Sujet/Thème.');
-				$('#argp_subject').focus();
-				return;
+			
+			// Champ sujet optionnel - utiliser défaut si vide
+			const useSubject = $('#argp_use_subject').is(':checked');
+			if (!useSubject || !subject) {
+				subject = 'recettes'; // Défaut générique
 			}
 
 			ARGPAdmin.setTitleLoading(true);
