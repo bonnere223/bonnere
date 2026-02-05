@@ -105,6 +105,58 @@ class ARGP_Settings {
 			'argp_preferences_section'
 		);
 
+		// Section : Processus de Génération
+		add_settings_section(
+			'argp_process_section',
+			__( 'Processus de Génération', 'ai-recipe-generator-pro' ),
+			array( $this, 'render_process_section_callback' ),
+			'argp-settings'
+		);
+
+		// Champ : Ordre de génération
+		add_settings_field(
+			'generation_order',
+			__( 'Ordre de génération', 'ai-recipe-generator-pro' ),
+			array( $this, 'render_generation_order_field' ),
+			'argp-settings',
+			'argp_process_section'
+		);
+
+		// Champ : Arrêt si erreur
+		add_settings_field(
+			'stop_on_error',
+			__( 'Arrêt si erreur', 'ai-recipe-generator-pro' ),
+			array( $this, 'render_stop_on_error_field' ),
+			'argp-settings',
+			'argp_process_section'
+		);
+
+		// Section : Prompts Personnalisables
+		add_settings_section(
+			'argp_prompts_section',
+			__( 'Prompts Personnalisables', 'ai-recipe-generator-pro' ),
+			array( $this, 'render_prompts_section_callback' ),
+			'argp-settings'
+		);
+
+		// Champ : Prompt Texte Recette
+		add_settings_field(
+			'prompt_text',
+			__( 'Prompt Texte Recette', 'ai-recipe-generator-pro' ),
+			array( $this, 'render_prompt_text_field' ),
+			'argp-settings',
+			'argp_prompts_section'
+		);
+
+		// Champ : Prompt Génération Image
+		add_settings_field(
+			'prompt_image',
+			__( 'Prompt Génération Image', 'ai-recipe-generator-pro' ),
+			array( $this, 'render_prompt_image_field' ),
+			'argp-settings',
+			'argp_prompts_section'
+		);
+
 		// PHASE 5: Section Debug
 		add_settings_section(
 			'argp_debug_section',
@@ -151,6 +203,24 @@ class ARGP_Settings {
 	public function render_preferences_section_callback() {
 		echo '<p class="description">';
 		esc_html_e( 'Personnalisez le comportement du générateur de recettes.', 'ai-recipe-generator-pro' );
+		echo '</p>';
+	}
+
+	/**
+	 * Callback de la section Processus
+	 */
+	public function render_process_section_callback() {
+		echo '<p class="description">';
+		esc_html_e( 'Configurez le comportement du processus de génération.', 'ai-recipe-generator-pro' );
+		echo '</p>';
+	}
+
+	/**
+	 * Callback de la section Prompts
+	 */
+	public function render_prompts_section_callback() {
+		echo '<p class="description">';
+		esc_html_e( 'Modifiez les prompts utilisés pour générer les textes et images. Variables disponibles : {titre}, {item}, {ingredients}', 'ai-recipe-generator-pro' );
 		echo '</p>';
 	}
 
@@ -281,6 +351,112 @@ class ARGP_Settings {
 	}
 
 	/**
+	 * Affiche le champ Ordre de génération
+	 */
+	public function render_generation_order_field() {
+		$options = get_option( $this->option_name, array() );
+		$value   = isset( $options['generation_order'] ) ? $options['generation_order'] : 'image_first';
+
+		?>
+		<fieldset>
+			<label>
+				<input 
+					type="radio" 
+					name="<?php echo esc_attr( $this->option_name ); ?>[generation_order]" 
+					value="image_first"
+					<?php checked( $value, 'image_first' ); ?>
+				/>
+				<span style="margin-left: 5px;">🖼️ <?php esc_html_e( 'Image d\'abord, puis texte', 'ai-recipe-generator-pro' ); ?></span>
+			</label>
+			<p class="description" style="margin-left: 25px;">
+				<?php esc_html_e( 'L\'IA génère l\'image, puis analyse l\'image pour créer le texte de recette (défaut)', 'ai-recipe-generator-pro' ); ?>
+			</p>
+			<br>
+			<label>
+				<input 
+					type="radio" 
+					name="<?php echo esc_attr( $this->option_name ); ?>[generation_order]" 
+					value="text_first"
+					<?php checked( $value, 'text_first' ); ?>
+				/>
+				<span style="margin-left: 5px;">📝 <?php esc_html_e( 'Texte d\'abord, puis image', 'ai-recipe-generator-pro' ); ?></span>
+			</label>
+			<p class="description" style="margin-left: 25px;">
+				<?php esc_html_e( 'L\'IA génère le texte de recette, puis crée une image basée sur le texte', 'ai-recipe-generator-pro' ); ?>
+			</p>
+		</fieldset>
+		<?php
+	}
+
+	/**
+	 * Affiche le champ Arrêt si erreur
+	 */
+	public function render_stop_on_error_field() {
+		$options = get_option( $this->option_name, array() );
+		$value   = isset( $options['stop_on_error'] ) ? (bool) $options['stop_on_error'] : false;
+
+		?>
+		<label>
+			<input 
+				type="checkbox" 
+				id="argp_stop_on_error" 
+				name="<?php echo esc_attr( $this->option_name ); ?>[stop_on_error]" 
+				value="1"
+				<?php checked( $value, true ); ?>
+			/>
+			<?php esc_html_e( 'Arrêter la génération si une erreur critique survient', 'ai-recipe-generator-pro' ); ?>
+		</label>
+		<p class="description">
+			<?php esc_html_e( 'Si désactivé, le plugin passera à la recette suivante en cas d\'erreur.', 'ai-recipe-generator-pro' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Affiche le champ Prompt Texte
+	 */
+	public function render_prompt_text_field() {
+		$options = get_option( $this->option_name, array() );
+		$default = "Écris une recette à partir de : {titre}\n\nFormat:\n- Titre court\n- Personnes et temps\n- Ingrédients avec émojis et grammage\n- Étapes numérotées 1️⃣, 2️⃣ avec émojis\n- Astuce pour faciliter\n- Ingrédient à échanger\n- Astuce de cuisson";
+		$value   = isset( $options['prompt_text'] ) ? $options['prompt_text'] : $default;
+
+		?>
+		<textarea 
+			id="argp_prompt_text" 
+			name="<?php echo esc_attr( $this->option_name ); ?>[prompt_text]" 
+			rows="12" 
+			class="large-text code"
+			style="font-family: monospace;"
+		><?php echo esc_textarea( $value ); ?></textarea>
+		<p class="description">
+			<?php esc_html_e( 'Prompt utilisé pour générer le texte de chaque recette. Variables : {titre}, {item}', 'ai-recipe-generator-pro' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Affiche le champ Prompt Image
+	 */
+	public function render_prompt_image_field() {
+		$options = get_option( $this->option_name, array() );
+		$default = "Tu es expert en direction artistique culinaire. Crée un prompt d'image détaillé et appétissant.\n\nConsignes:\n- Décris le rendu visuel final du plat\n- Type de plat, portions visibles\n- Ingrédients reconnaissables\n- Textures (fondant, croustillant, gratiné)\n- Couleurs dominantes\n- Type et couleur assiette\n- Disposition éléments\n- Ambiance : surface, style, éclairage naturel\n- Interdiction : personnages, mains\n- Style : photographie culinaire professionnelle, ultra réaliste, magazine";
+		$value   = isset( $options['prompt_image'] ) ? $options['prompt_image'] : $default;
+
+		?>
+		<textarea 
+			id="argp_prompt_image" 
+			name="<?php echo esc_attr( $this->option_name ); ?>[prompt_image]" 
+			rows="15" 
+			class="large-text code"
+			style="font-family: monospace;"
+		><?php echo esc_textarea( $value ); ?></textarea>
+		<p class="description">
+			<?php esc_html_e( 'Prompt système utilisé pour créer le prompt image à partir du texte de recette. Variables : {recipe_text}', 'ai-recipe-generator-pro' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
 	 * PHASE 5: Affiche le champ Debug
 	 */
 	public function render_debug_field() {
@@ -330,6 +506,25 @@ class ARGP_Settings {
 		// Sanitize Manual Titles (textarea)
 		if ( isset( $input['manual_titles'] ) ) {
 			$sanitized['manual_titles'] = sanitize_textarea_field( $input['manual_titles'] );
+		}
+
+		// Sanitize Generation Order
+		if ( isset( $input['generation_order'] ) ) {
+			$order = sanitize_text_field( $input['generation_order'] );
+			$sanitized['generation_order'] = in_array( $order, array( 'image_first', 'text_first' ), true ) ? $order : 'image_first';
+		}
+
+		// Sanitize Stop on Error
+		$sanitized['stop_on_error'] = isset( $input['stop_on_error'] ) && '1' === $input['stop_on_error'];
+
+		// Sanitize Prompt Text
+		if ( isset( $input['prompt_text'] ) ) {
+			$sanitized['prompt_text'] = sanitize_textarea_field( $input['prompt_text'] );
+		}
+
+		// Sanitize Prompt Image
+		if ( isset( $input['prompt_image'] ) ) {
+			$sanitized['prompt_image'] = sanitize_textarea_field( $input['prompt_image'] );
 		}
 
 		// PHASE 5: Sanitize Debug option

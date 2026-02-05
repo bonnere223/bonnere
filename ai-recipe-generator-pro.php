@@ -109,6 +109,10 @@ class AI_Recipe_Generator_Pro {
 			'openai_api_key'      => '',
 			'replicate_api_key'   => '',
 			'manual_titles'       => '',
+			'generation_order'    => 'image_first',
+			'stop_on_error'       => false,
+			'prompt_text'         => "Écris une recette à partir de : {titre}\n\nFormat:\n- Titre court\n- Personnes et temps\n- Ingrédients avec émojis et grammage\n- Étapes numérotées 1️⃣, 2️⃣ avec émojis\n- Astuce pour faciliter\n- Ingrédient à échanger\n- Astuce de cuisson",
+			'prompt_image'        => "Tu es expert en direction artistique culinaire. Crée un prompt d'image détaillé et appétissant.\n\nConsignes:\n- Décris le rendu visuel final du plat\n- Type de plat, portions visibles\n- Ingrédients reconnaissables\n- Textures (fondant, croustillant, gratiné)\n- Couleurs dominantes\n- Type et couleur assiette\n- Disposition éléments\n- Ambiance : surface, style, éclairage naturel\n- Interdiction : personnages, mains\n- Style : photographie culinaire professionnelle, ultra réaliste, magazine",
 			'enable_debug'        => false, // PHASE 5
 		);
 		
