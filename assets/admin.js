@@ -79,16 +79,22 @@
 		detectRecipeCount: function() {
 			const title = $('#argp_title').val();
 			
-			// Regex pour détecter nombres (1-10)
+			// Regex pour détecter nombres
 			const matches = title.match(/(\d+)\s*(recettes?|plats?|desserts?|entrées?)/i);
 			
 			if (matches) {
-				let count = parseInt(matches[1], 10);
-				count = Math.max(1, Math.min(10, count)); // Clamp 1-10
+				let detectedNumber = parseInt(matches[1], 10);
+				let count = Math.max(1, Math.min(10, detectedNumber)); // Clamp 1-10
 				
 				ARGPAdmin.detectedCount = count;
 				$('#argp_count').val(count);
-				$('#argp-detected-count-text').text(count + ' recette(s) détectée(s)');
+				
+				// Afficher le nombre détecté ET clamped si différent
+				if (detectedNumber > 10) {
+					$('#argp-detected-count-text').html(count + ' recette(s) détectée(s) <em>(limité à 10 max)</em>');
+				} else {
+					$('#argp-detected-count-text').text(count + ' recette(s) détectée(s)');
+				}
 				$('#argp-detected-count').fadeIn();
 				
 				// Mettre à jour estimation

@@ -17,6 +17,7 @@
 	--argp-bg-light: #f6f7f7;
 	--argp-text: #1d2327;
 	--argp-text-light: #646970;
+	--argp-text-white: #ffffff;
 	--argp-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 	--argp-card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.12);
 	--argp-border-radius: 8px;
@@ -37,7 +38,7 @@
 	gap: 12px;
 	font-size: 28px;
 	font-weight: 600;
-	color: var(--argp-text);
+	color: #1d2327;
 	margin-bottom: 8px;
 }
 
@@ -49,7 +50,7 @@
 
 .argp-page-subtitle {
 	font-size: 16px;
-	color: var(--argp-text-light);
+	color: #646970;
 	margin-bottom: var(--argp-spacing);
 }
 
@@ -100,7 +101,7 @@
 	margin: 0;
 	font-size: 18px;
 	font-weight: 600;
-	color: var(--argp-text);
+	color: #1d2327;
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -109,7 +110,7 @@
 .argp-card-subtitle {
 	margin: 8px 0 0;
 	font-size: 14px;
-	color: var(--argp-text-light);
+	color: #646970;
 	font-weight: normal;
 }
 
@@ -209,7 +210,7 @@
 	display: block;
 	font-weight: 600;
 	font-size: 14px;
-	color: var(--argp-text);
+	color: #1d2327;
 	margin-bottom: 8px;
 }
 
@@ -244,7 +245,7 @@
 .argp-field-description {
 	margin: 8px 0 0;
 	font-size: 13px;
-	color: var(--argp-text-light);
+	color: #646970;
 }
 
 /* ========================================
@@ -345,7 +346,7 @@
 
 .argp-btn-secondary {
 	background: #fff;
-	color: var(--argp-text);
+	color: #1d2327;
 	border: 2px solid var(--argp-border);
 }
 
@@ -358,7 +359,7 @@
 .argp-btn-outline {
 	background: transparent;
 	border: 2px dashed var(--argp-border);
-	color: var(--argp-text-light);
+	color: #646970;
 }
 
 .argp-btn-outline:hover {
@@ -453,7 +454,7 @@
 .argp-item-text {
 	flex: 1;
 	font-size: 14px;
-	color: var(--argp-text);
+	color: #1d2327;
 }
 
 /* ========================================
@@ -498,7 +499,7 @@
 
 .argp-info-text {
 	font-size: 13px;
-	color: var(--argp-text-light);
+	color: #646970;
 	font-style: italic;
 }
 
@@ -613,7 +614,7 @@
 .argp-progress-status {
 	text-align: center;
 	font-size: 15px;
-	color: var(--argp-text);
+	color: #1d2327;
 	margin: 15px 0;
 	padding: 12px;
 	background: var(--argp-bg-light);
@@ -667,13 +668,13 @@
 
 .argp-log-time {
 	font-size: 11px;
-	color: var(--argp-text-light);
+	color: #646970;
 	min-width: 70px;
 }
 
 .argp-log-message {
 	flex: 1;
-	color: var(--argp-text);
+	color: #1d2327;
 }
 
 /* ========================================
@@ -723,7 +724,7 @@
 }
 
 .argp-card-help h3 {
-	color: #f0b849;
+	color: #1d2327;
 }
 
 .argp-help-list {
@@ -735,7 +736,7 @@
 .argp-help-list li {
 	padding: 8px 0;
 	font-size: 13px;
-	color: var(--argp-text);
+	color: #1d2327;
 	position: relative;
 }
 
