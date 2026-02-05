@@ -480,24 +480,6 @@ class ARGP_Admin {
 						</form>
 					</div>
 				</div>
-
-				<!-- Section Diagnostics -->
-				<div class="argp-card">
-					<div class="argp-card-header">
-						<h2><?php esc_html_e( '🔧 Diagnostics système', 'ai-recipe-generator-pro' ); ?></h2>
-					</div>
-					<div class="argp-card-body">
-						<p class="description">
-							<?php esc_html_e( 'Vérifiez que votre serveur est correctement configuré pour utiliser le plugin.', 'ai-recipe-generator-pro' ); ?>
-						</p>
-
-						<button type="button" id="argp-run-diagnostics" class="button button-secondary">
-							<?php esc_html_e( 'Lancer le test', 'ai-recipe-generator-pro' ); ?>
-						</button>
-
-						<div id="argp-diagnostics-results" class="argp-diagnostics-results" style="display: none;"></div>
-					</div>
-				</div>
 			</div>
 		</div>
 		<?php
@@ -589,8 +571,28 @@ class ARGP_Admin {
 					</div>
 				</div>
 
+				<!-- CARTE: DIAGNOSTICS SYSTÈME -->
+				<div class="argp-card">
+					<div class="argp-card-header">
+						<h2><?php esc_html_e( '🔧 Diagnostics système', 'ai-recipe-generator-pro' ); ?></h2>
+						<p class="argp-card-subtitle"><?php esc_html_e( 'Vérifiez que votre serveur est correctement configuré', 'ai-recipe-generator-pro' ); ?></p>
+					</div>
+					<div class="argp-card-body">
+						<p><?php esc_html_e( 'Ce test vérifie les prérequis système du plugin (PHP, connexions externes, etc.).', 'ai-recipe-generator-pro' ); ?></p>
+
+						<p style="margin-top: 20px;">
+							<button type="button" id="argp-run-diagnostics" class="button button-primary">
+								<span class="dashicons dashicons-admin-tools" style="margin-top: 4px;"></span>
+								<?php esc_html_e( 'Lancer le test', 'ai-recipe-generator-pro' ); ?>
+							</button>
+						</p>
+
+						<div id="argp-diagnostics-results" class="argp-diagnostics-results" style="display: none; margin-top: 20px;"></div>
+					</div>
+				</div>
+
 				<!-- CARTE: APRÈS MISE À JOUR -->
-				<div class="argp-card" style="border-left: 4px solid #f0b849; background: #fffbf0;">
+				<div class="argp-card" style="border-left: 4px solid #f0b849;">
 					<div class="argp-card-header">
 						<h2><?php esc_html_e( '🔄 Après une mise à jour', 'ai-recipe-generator-pro' ); ?></h2>
 					</div>
