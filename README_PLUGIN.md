@@ -1,0 +1,188 @@
+# AI Recipe Generator Pro - Documentation
+
+## 📦 Installation
+
+1. **Télécharger le plugin** : Copiez tous les fichiers dans le dossier `/wp-content/plugins/ai-recipe-generator-pro/`
+2. **Activer le plugin** : Dans l'admin WordPress, allez dans Extensions → Extensions installées → Activer "AI Recipe Generator Pro"
+3. **Vérifier l'activation** : Un nouveau menu "AI Recipe Pro" devrait apparaître dans la barre latérale admin
+
+## 🏗️ Structure des fichiers
+
+```
+ai-recipe-generator-pro/
+├── ai-recipe-generator-pro.php    # Fichier principal (bootstrap)
+├── README_PLUGIN.md               # Cette documentation
+├── includes/
+│   ├── class-argp-admin.php       # Gestion des menus et pages admin
+│   ├── class-argp-settings.php    # Settings API (réglages)
+│   └── class-argp-ajax.php        # Handlers AJAX (diagnostics, suggestions)
+└── assets/
+    ├── admin.js                   # Scripts JS pour l'interface admin
+    └── admin.css                  # Styles CSS pour l'interface admin
+```
+
+## ⚙️ Configuration initiale
+
+### 1. Accéder aux Réglages
+
+Dans l'admin WordPress, allez dans **AI Recipe Pro → Réglages**
+
+### 2. Configurer les clés API
+
+#### OpenAI API Key
+- Rendez-vous sur [OpenAI Platform](https://platform.openai.com/api-keys)
+- Créez une nouvelle clé API
+- Copiez la clé (commence par `sk-...`)
+- Collez-la dans le champ "OpenAI API Key"
+
+#### Replicate API Key
+- Rendez-vous sur [Replicate Account](https://replicate.com/account/api-tokens)
+- Créez un token API
+- Copiez le token (commence par `r8_...`)
+- Collez-le dans le champ "Replicate API Key"
+
+### 3. Ajouter des titres manuels (optionnel)
+
+Dans la section "Titres manuels préférés", vous pouvez ajouter une liste de titres d'articles que vous aimez (un par ligne). Ces titres seront utilisés comme référence pour générer des suggestions pertinentes.
+
+Exemple :
+```
+10 recettes végétariennes faciles pour l'été
+Guide complet des desserts au chocolat
+Les secrets des chefs pour des pâtes parfaites
+```
+
+### 4. Lancer le diagnostic
+
+Cliquez sur le bouton **"Lancer le test"** pour vérifier que votre serveur est correctement configuré.
+
+Le diagnostic vérifie :
+- ✅ `allow_url_fopen` activé
+- ✅ Connexions externes avec `wp_remote_get`
+- ✅ Version PHP (7.4+ requis)
+- ✅ Version WordPress (5.8+ recommandé)
+- ✅ Clés API configurées
+
+## 🚀 Utilisation
+
+### Page "Générer"
+
+1. **Accéder à la page** : AI Recipe Pro → Générer
+2. **Remplir le formulaire** :
+   - **Sujet/Thème** : Le thème principal des recettes (ex: "recettes végétariennes")
+   - **Nombre de recettes** : Choisir entre 1 et 10 recettes
+   - **Titre** : Laisser vide pour génération automatique, ou cliquer sur "Suggérer"
+
+### Suggestions de titres
+
+1. Cliquez sur le bouton **"Suggérer"** à droite du champ "Titre"
+2. Le système génère 3 suggestions basées sur :
+   - Vos 15 derniers articles publiés
+   - Les titres manuels configurés dans les réglages
+   - Le sujet/thème que vous avez saisi
+3. Cliquez sur une suggestion pour la sélectionner
+4. Le titre est automatiquement rempli dans le champ
+
+## 🔒 Sécurité
+
+Le plugin respecte toutes les bonnes pratiques WordPress :
+
+- **Nonces** : Tous les formulaires et requêtes AJAX sont protégés par des nonces
+- **Capabilities** : Seuls les utilisateurs avec la permission `manage_options` peuvent accéder aux fonctionnalités
+- **Sanitization** : Toutes les entrées utilisateur sont nettoyées (sanitize)
+- **Escaping** : Toutes les sorties sont échappées pour éviter les injections XSS
+
+## 📋 Phases de développement
+
+### ✅ Phase 1 (MVP - Complété)
+- Interface admin complète
+- Page Réglages avec Settings API
+- Diagnostics système
+- Sauvegarde sécurisée des clés API
+
+### ✅ Phase 2 (MVP - Complété)
+- Page Générer avec formulaire
+- Suggestions de titres (mock)
+- Architecture préparée pour IA
+
+### 🔄 Phase 3 (À venir)
+- Intégration OpenAI pour génération de contenu
+- Génération réelle de recettes
+- Suggestions de titres intelligentes avec IA
+
+### 🔄 Phase 4 (À venir)
+- Intégration Replicate pour génération d'images
+- Téléchargement automatique dans la bibliothèque WP
+- Association des images aux recettes
+
+### 🔄 Phase 5 (À venir)
+- Publication automatique des articles
+- Gestion des featured images
+- Support des catégories et tags
+- Export des recettes
+
+## 🛠️ Support technique
+
+### Problèmes courants
+
+**Le plugin ne s'active pas**
+- Vérifiez que vous utilisez PHP 7.4 ou supérieur
+- Vérifiez que WordPress est en version 5.8 ou supérieur
+
+**Les diagnostics échouent**
+- Vérifiez que `allow_url_fopen` est activé dans votre php.ini
+- Vérifiez que votre serveur peut faire des requêtes HTTP externes
+- Contactez votre hébergeur si nécessaire
+
+**Les suggestions ne fonctionnent pas**
+- Vérifiez que vous avez des articles publiés sur votre blog
+- Vérifiez que JavaScript est activé dans votre navigateur
+- Ouvrez la console du navigateur (F12) pour voir les erreurs
+
+### Logs de debug
+
+Pour activer le mode debug WordPress, ajoutez dans `wp-config.php` :
+
+```php
+define('WP_DEBUG', true);
+define('WP_DEBUG_LOG', true);
+define('WP_DEBUG_DISPLAY', false);
+```
+
+Les logs seront enregistrés dans `/wp-content/debug.log`
+
+## 📝 Conventions de code
+
+Le plugin suit les [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/) :
+
+- **Préfixe** : Tous les noms de fonctions/classes utilisent le préfixe `argp_` ou `ARGP_`
+- **Hooks** : Utilisation extensive des hooks WordPress (actions et filtres)
+- **Internationalisation** : Textes prêts pour la traduction (text domain : `ai-recipe-generator-pro`)
+- **Architecture OOP** : Classes avec pattern Singleton
+- **Sécurité** : Nonces, sanitization, escaping
+
+## 🌍 Internationalisation
+
+Le plugin est prêt pour la traduction. Pour créer une traduction :
+
+1. Créer un dossier `/languages/` à la racine du plugin
+2. Utiliser un outil comme Poedit pour créer les fichiers `.po` et `.mo`
+3. Nom du fichier : `ai-recipe-generator-pro-fr_FR.po` (exemple pour le français)
+
+## 📄 Licence
+
+GPL v2 or later
+
+## 👨‍💻 Développé avec
+
+- WordPress Settings API
+- jQuery (inclus dans WordPress)
+- Pattern Singleton pour les classes
+- AJAX natif WordPress
+- WP_Filesystem (préparé pour Phase 4)
+
+---
+
+**Version** : 1.0.0  
+**Auteur** : Votre Nom  
+**Dernière mise à jour** : 2026-02-05
