@@ -294,7 +294,6 @@ class ARGP_Ajax {
 		$count   = isset( $_POST['count'] ) ? absint( $_POST['count'] ) : 1;
 		$title   = isset( $_POST['title'] ) ? sanitize_text_field( wp_unslash( $_POST['title'] ) ) : '';
 		$status  = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : 'draft';
-		$format  = isset( $_POST['format'] ) ? sanitize_text_field( wp_unslash( $_POST['format'] ) ) : 'tag';
 
 		// PHASE 5: Validations renforcées
 		$subject = substr( $subject, 0, 200 ); // Limite 200 caractères
@@ -335,11 +334,8 @@ class ARGP_Ajax {
 			'count'                  => $count,
 			'title'                  => $title,
 			'status'                 => $status,
-			'format'                 => $format,
 			'openai_json'            => null,
 			'created_post_id'        => null,
-			'created_post_ids'       => array(), // Pour mode tag : array de post IDs
-			'created_tag_id'         => null,    // Pour mode tag
 			'replicate_results'      => array(),
 			'errors'                 => array(),
 			'events'                 => array(),
@@ -477,19 +473,13 @@ class ARGP_Ajax {
 	}
 
 	/**
-	 * STEP 1: Créer le post WordPress (mode global ou tag)
+	 * STEP 1: Créer le post WordPress (MODE GLOBAL uniquement)
 	 *
 	 * @param array &$job Données du job.
 	 * @return array Résultat de l'étape.
 	 */
 	private function job_step_create_post( &$job ) {
-		$format = isset( $job['format'] ) ? $job['format'] : 'global';
-
-		if ( 'tag' === $format ) {
-			return $this->create_posts_with_tag( $job );
-		} else {
-			return $this->create_single_global_post( $job );
-		}
+		return $this->create_single_global_post( $job );
 	}
 
 	/**
@@ -536,97 +526,6 @@ class ARGP_Ajax {
 	}
 
 	/**
-	 * Mode TAG : 1 article parent + 1 article par recette + tag commun
-	 */
-	private function create_posts_with_tag( &$job ) {
-		$openai_data = $job['openai_json'];
-		$title = ! empty( $job['title'] ) ? $job['title'] : $job['subject'];
-
-		// Créer le tag avec slug basé sur le thème
-		$tag_slug = sanitize_title( $job['subject'] );
-		$tag_name = $title;
-
-		$tag = wp_insert_term(
-			$tag_name,
-			'post_tag',
-			array(
-				'slug' => $tag_slug,
-			)
-		);
-
-		$tag_id = is_wp_error( $tag ) ? 0 : $tag['term_id'];
-		if ( is_wp_error( $tag ) && isset( $tag->error_data['term_exists'] ) ) {
-			$tag_id = $tag->error_data['term_exists'];
-		}
-
-		$job['created_tag_id'] = $tag_id;
-		$job['created_post_ids'] = array();
-
-		// 1. Créer l'article parent (non publié, sert de contrôleur)
-		$parent_content = '<p>' . wp_kses_post( $openai_data['intro'] ) . '</p>';
-		$parent_content .= "\n\n<p><em>" . __( 'Cet article parent contrôle la publication des recettes associées. Les recettes individuelles sont listées ci-dessous.', 'ai-recipe-generator-pro' ) . '</em></p>';
-
-		$parent_id = wp_insert_post(
-			array(
-				'post_title'   => sanitize_text_field( $title ),
-				'post_content' => $parent_content,
-				'post_status'  => 'draft', // Toujours en brouillon (contrôleur)
-				'post_type'    => 'post',
-				'post_author'  => get_current_user_id(),
-				'tags_input'   => array( $tag_id ),
-			)
-		);
-
-		$job['created_post_id'] = $parent_id; // Article parent pour edit_link
-
-		// 2. Créer un article enfant pour chaque recette
-		foreach ( $openai_data['recipes'] as $index => $recipe ) {
-			$recipe_content = '<p>' . wp_kses_post( $openai_data['intro'] ) . '</p>';
-			$recipe_content .= "\n\n<h3>" . __( 'Ingrédients', 'ai-recipe-generator-pro' ) . "</h3>";
-			$recipe_content .= "\n<ul>";
-			foreach ( $recipe['ingredients'] as $ingredient ) {
-				$recipe_content .= "\n  <li>" . esc_html( $ingredient ) . "</li>";
-			}
-			$recipe_content .= "\n</ul>";
-			$recipe_content .= "\n\n<h3>" . __( 'Instructions', 'ai-recipe-generator-pro' ) . "</h3>";
-			$recipe_content .= "\n<ol>";
-			foreach ( $recipe['instructions'] as $instruction ) {
-				$recipe_content .= "\n  <li>" . esc_html( $instruction ) . "</li>";
-			}
-			$recipe_content .= "\n</ol>";
-
-			$child_id = wp_insert_post(
-				array(
-					'post_title'   => sanitize_text_field( $recipe['name'] ),
-					'post_content' => $recipe_content,
-					'post_status'  => $job['status'],
-					'post_type'    => 'post',
-					'post_author'  => get_current_user_id(),
-					'post_parent'  => $parent_id, // Lien parent-enfant
-					'tags_input'   => array( $tag_id ),
-				)
-			);
-
-			if ( ! is_wp_error( $child_id ) ) {
-				$job['created_post_ids'][] = $child_id;
-			}
-		}
-
-		$job['step'] = 2;
-
-		return array(
-			'done'     => false,
-			'progress' => 30,
-			'message'  => sprintf(
-				__( 'Article parent + %d recette(s) créé(s) avec tag "%s". Génération des images...', 'ai-recipe-generator-pro' ),
-				count( $job['created_post_ids'] ),
-				$tag_name
-			),
-			'post_id'  => $parent_id,
-		);
-	}
-
-	/**
 	 * STEP 2+: Générer l'image pour une recette
 	 * BUGFIX: Séquençage Replicate avec délai anti-throttling
 	 *
@@ -666,9 +565,7 @@ class ARGP_Ajax {
 						$recipe['name']
 					);
 					$job['replicate_results'][ $recipe_index ] = array( 'status' => 'failed' );
-					$post_id_target = isset( $job['created_post_ids'] ) ? $job['created_post_ids'] : $job['created_post_id'];
-					$format_mode = isset( $job['format'] ) ? $job['format'] : 'global';
-					$this->append_recipe_to_post( $post_id_target, $recipe, null, $recipe_index, $format_mode );
+					$this->append_recipe_to_post( $job['created_post_id'], $recipe, null );
 					$job['step']++;
 					
 					ARGP_Settings::log( "Replicate throttling - abandon après 3 retries pour recette {$recipe['name']}", 'warning' );
@@ -759,9 +656,7 @@ class ARGP_Ajax {
 					'attachment_id' => $attachment_id,
 				);
 
-				$post_id_target = isset( $job['created_post_ids'] ) ? $job['created_post_ids'] : $job['created_post_id'];
-				$format_mode = isset( $job['format'] ) ? $job['format'] : 'global';
-				$this->append_recipe_to_post( $post_id_target, $recipe, $attachment_id, $recipe_index, $format_mode );
+				$this->append_recipe_to_post( $job['created_post_id'], $recipe, $attachment_id );
 				$job['step']++;
 				$progress = 30 + ( ( $recipe_index + 1 ) / $total_recipes ) * 60;
 				
@@ -895,33 +790,24 @@ class ARGP_Ajax {
 	}
 
 	/**
-	 * STEP final: Finaliser le job
+	 * STEP final: Finaliser le job (MODE GLOBAL uniquement)
 	 *
 	 * @param array  &$job    Données du job.
 	 * @param string $job_id  ID du job.
 	 * @return array Résultat final.
 	 */
 	private function job_step_finalize( &$job, $job_id = '' ) {
-		$format = isset( $job['format'] ) ? $job['format'] : 'global';
-
-		// Mode TAG : Ajouter vignettes Pinterest à chaque article
-		if ( 'tag' === $format && ! empty( $job['created_post_ids'] ) ) {
-			$this->add_pinterest_thumbnails_to_posts( $job );
-			$post_id = $job['created_post_ids'];
-			$edit_link = get_edit_post_link( $job['created_post_ids'][0], 'raw' );
-		} else {
-			$post_id = $job['created_post_id'];
-			$edit_link = get_edit_post_link( $post_id, 'raw' );
-		}
+		$post_id = $job['created_post_id'];
+		$edit_link = get_edit_post_link( $post_id, 'raw' );
 
 		// PHASE 5: Unregister job terminé
 		if ( ! empty( $job_id ) ) {
 			$this->unregister_job( $job_id );
-			ARGP_Settings::log( "Job {$job_id} terminé - Post ID(s): " . wp_json_encode( $post_id ), 'info' );
+			ARGP_Settings::log( "Job {$job_id} terminé - Post ID: {$post_id}", 'info' );
 		}
 
 		// Générer nonce pour exports
-		$export_nonce = is_array( $post_id ) ? wp_create_nonce( 'argp_export_' . $post_id[0] ) : wp_create_nonce( 'argp_export_' . $post_id );
+		$export_nonce = wp_create_nonce( 'argp_export_' . $post_id );
 
 		return array(
 			'done'         => true,
@@ -932,76 +818,6 @@ class ARGP_Ajax {
 			'export_nonce' => $export_nonce,
 			'errors'       => $job['errors'],
 		);
-	}
-
-	/**
-	 * Ajoute une section "Recettes du même thème" style WordPress
-	 */
-	private function add_pinterest_thumbnails_to_posts( &$job ) {
-		$tag_id = $job['created_tag_id'];
-		
-		if ( ! $tag_id ) {
-			return;
-		}
-
-		$tag = get_term( $tag_id );
-		if ( is_wp_error( $tag ) ) {
-			return;
-		}
-
-		// Récupérer tous les articles du tag (y compris les nouvelles recettes)
-		$tag_posts = get_posts(
-			array(
-				'tag_id'      => $tag_id,
-				'numberposts' => -1,
-				'post_status' => array( 'publish', 'draft' ),
-				'orderby'     => 'date',
-				'order'       => 'DESC',
-			)
-		);
-
-		// Pour chaque article enfant (pas le parent)
-		foreach ( $job['created_post_ids'] as $post_id ) {
-			$post = get_post( $post_id );
-			if ( ! $post ) {
-				continue;
-			}
-
-			// Section "Autres recettes de ce thème"
-			$related_html = "\n\n" . '<div class="argp-related-recipes-section">';
-			$related_html .= '<h3 class="argp-related-title">' . sprintf( __( 'Autres recettes : %s', 'ai-recipe-generator-pro' ), esc_html( $tag->name ) ) . '</h3>';
-			$related_html .= '<div class="argp-recipe-thumbnails">';
-
-			foreach ( $tag_posts as $related_post ) {
-				// Skip l'article actuel et l'article parent
-				if ( $related_post->ID === $post_id || $related_post->ID === $job['created_post_id'] ) {
-					continue;
-				}
-
-				$thumbnail_url = get_the_post_thumbnail_url( $related_post->ID, 'medium' );
-				$permalink = get_permalink( $related_post->ID );
-
-				$related_html .= '<a href="' . esc_url( $permalink ) . '" class="argp-recipe-thumbnail">';
-				if ( $thumbnail_url ) {
-					$related_html .= '<img src="' . esc_url( $thumbnail_url ) . '" alt="' . esc_attr( $related_post->post_title ) . '" class="argp-recipe-thumbnail-image" loading="lazy" />';
-				} else {
-					$related_html .= '<div class="argp-recipe-thumbnail-placeholder">📸</div>';
-				}
-				$related_html .= '<div class="argp-recipe-thumbnail-title">' . esc_html( $related_post->post_title ) . '</div>';
-				$related_html .= '</a>';
-			}
-
-			$related_html .= '</div>';
-			$related_html .= '</div>';
-
-			// Ajouter au contenu de l'article
-			wp_update_post(
-				array(
-					'ID'           => $post_id,
-					'post_content' => $post->post_content . $related_html,
-				)
-			);
-		}
 	}
 
 	/* ========================================
@@ -1291,32 +1107,13 @@ class ARGP_Ajax {
 	}
 
 	/**
-	 * Ajoute une recette au contenu du post (mode global) ou met à jour l'image (mode tag)
+	 * Ajoute une recette au contenu du post (MODE GLOBAL uniquement)
 	 *
-	 * @param int|array  $post_id       ID du post (ou array en mode tag).
+	 * @param int        $post_id       ID du post.
 	 * @param array      $recipe        Données de la recette.
 	 * @param int|null   $attachment_id ID de l'image (optionnel).
-	 * @param int        $recipe_index  Index de la recette (pour mode tag).
-	 * @param string     $mode          Mode : 'global' ou 'tag'.
 	 */
-	private function append_recipe_to_post( $post_id, $recipe, $attachment_id = null, $recipe_index = 0, $mode = 'global' ) {
-		// Mode TAG : post_id est un array, on prend l'index correspondant
-		if ( 'tag' === $mode && is_array( $post_id ) ) {
-			$target_post_id = isset( $post_id[ $recipe_index ] ) ? $post_id[ $recipe_index ] : null;
-			
-			if ( ! $target_post_id ) {
-				return;
-			}
-
-			// Définir comme image à la une (sans l'ajouter au contenu pour éviter doublon)
-			if ( $attachment_id ) {
-				set_post_thumbnail( $target_post_id, $attachment_id );
-			}
-
-			return;
-		}
-
-		// Mode GLOBAL : fonctionnement classique
+	private function append_recipe_to_post( $post_id, $recipe, $attachment_id = null ) {
 		$post = get_post( $post_id );
 		if ( ! $post ) {
 			return;

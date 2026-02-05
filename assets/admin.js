@@ -427,7 +427,6 @@
 			const count = $('#argp_count').val();
 			const title = $('#argp_title').val().trim();
 			const status = $('#argp_status').val();
-			const format = $('input[name="argp_format"]:checked').val();
 
 			// Si titre rempli mais pas sujet, utiliser le titre comme sujet
 			if (!subject && title) {
@@ -449,10 +448,10 @@
 			ARGPAdmin.updateProgress(0, 'Initialisation...');
 			$('#argp-progress-logs').empty();
 
-			ARGPAdmin.startGeneration(subject, count, title, status, format);
+			ARGPAdmin.startGeneration(subject, count, title, status);
 		},
 
-		startGeneration: function(subject, count, title, status, format) {
+		startGeneration: function(subject, count, title, status) {
 			$.ajax({
 				url: argpAdmin.ajaxUrl,
 				type: 'POST',
@@ -462,8 +461,7 @@
 					subject: subject,
 					count: count,
 					title: title,
-					status: status,
-					format: format || 'tag'
+					status: status
 				},
 				success: function(response) {
 					if (response.success && response.data.job_id) {
