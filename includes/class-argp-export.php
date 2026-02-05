@@ -43,7 +43,7 @@ class ARGP_Export {
 		add_action( 'add_meta_boxes', array( $this, 'register_metabox' ) );
 
 		// Enregistrer les handlers d'export
-		add_action( 'admin_post_argp_export_zip', array( $this, 'handle_export_zip' ) );
+		add_action( 'admin_post_argp_export_images', array( $this, 'handle_export_images' ) );
 		add_action( 'admin_post_argp_export_txt', array( $this, 'handle_export_txt' ) );
 
 		// Ajouter styles pour la metabox
@@ -120,9 +120,9 @@ class ARGP_Export {
 		$nonce = wp_create_nonce( 'argp_export_' . $post->ID );
 
 		// URLs d'export
-		$zip_url = add_query_arg(
+		$images_url = add_query_arg(
 			array(
-				'action'   => 'argp_export_zip',
+				'action'   => 'argp_export_images',
 				'post_id'  => $post->ID,
 				'_wpnonce' => $nonce,
 			),
@@ -140,9 +140,9 @@ class ARGP_Export {
 
 		?>
 		<div class="argp-export-metabox">
-			<a href="<?php echo esc_url( $zip_url ); ?>" class="button button-secondary argp-export-button">
-				<span class="dashicons dashicons-download"></span>
-				<?php esc_html_e( 'Télécharger ZIP des images', 'ai-recipe-generator-pro' ); ?>
+			<a href="<?php echo esc_url( $images_url ); ?>" class="button button-secondary argp-export-button">
+				<span class="dashicons dashicons-format-image"></span>
+				<?php esc_html_e( 'Télécharger IMG (dossier)', 'ai-recipe-generator-pro' ); ?>
 			</a>
 
 			<a href="<?php echo esc_url( $txt_url ); ?>" class="button button-secondary argp-export-button">
@@ -152,25 +152,207 @@ class ARGP_Export {
 
 			<div class="argp-export-info">
 				<strong><?php esc_html_e( 'ℹ️ Info :', 'ai-recipe-generator-pro' ); ?></strong><br>
-				<?php esc_html_e( 'Les images sont exportées dans l\'ordre d\'apparition des recettes. Le fichier TXT contient uniquement les noms et instructions.', 'ai-recipe-generator-pro' ); ?>
+				<?php esc_html_e( 'Les images sont renommées : 1-titre-article.jpg, 2-titre-article.jpg, etc. Format JPG automatique.', 'ai-recipe-generator-pro' ); ?>
 			</div>
-
-			<?php if ( ! class_exists( 'ZipArchive' ) ) : ?>
-				<div class="argp-export-warning">
-					<strong><?php esc_html_e( '⚠️ Attention :', 'ai-recipe-generator-pro' ); ?></strong><br>
-					<?php esc_html_e( 'ZipArchive n\'est pas disponible sur votre serveur. Le plugin utilisera PclZip comme fallback.', 'ai-recipe-generator-pro' ); ?>
-				</div>
-			<?php endif; ?>
 		</div>
 		<?php
 	}
 
 	/* ========================================
-	   HANDLER : EXPORT ZIP
+	   HANDLER : EXPORT IMAGES (JPG renommées)
 	   ======================================== */
 
 	/**
-	 * Handler pour l'export ZIP des images
+	 * Handler pour l'export des images en JPG renommées
+	 */
+	public function handle_export_images() {
+		// Récupérer et valider les paramètres
+		$post_id = isset( $_GET['post_id'] ) ? absint( $_GET['post_id'] ) : 0;
+		$nonce   = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
+
+		// Vérifier le nonce
+		if ( ! wp_verify_nonce( $nonce, 'argp_export_' . $post_id ) ) {
+			wp_die( esc_html__( 'Erreur de sécurité : nonce invalide.', 'ai-recipe-generator-pro' ) );
+		}
+
+		// Vérifier les permissions
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			wp_die( esc_html__( 'Vous n\'avez pas les permissions nécessaires.', 'ai-recipe-generator-pro' ) );
+		}
+
+		// Récupérer le post
+		$post = get_post( $post_id );
+		if ( ! $post ) {
+			wp_die( esc_html__( 'Article non trouvé.', 'ai-recipe-generator-pro' ) );
+		}
+
+		// Extraire les images
+		$images = $this->extract_images_from_post( $post );
+
+		if ( empty( $images ) ) {
+			wp_die( esc_html__( 'Aucune image trouvée dans cet article.', 'ai-recipe-generator-pro' ) );
+		}
+
+		// Créer dossier temporaire
+		$temp_dir = get_temp_dir() . 'argp-export-' . $post_id . '-' . time() . '/';
+		wp_mkdir_p( $temp_dir );
+
+		// Copier et renommer les images en JPG
+		$article_slug = sanitize_title( $post->post_title );
+		
+		foreach ( $images as $index => $image ) {
+			$source_file = $image['path'];
+			$new_name = ( $index + 1 ) . '-' . $article_slug . '.jpg';
+			$dest_file = $temp_dir . $new_name;
+
+			// Convertir en JPG
+			$this->convert_to_jpg( $source_file, $dest_file );
+		}
+
+		// Créer ZIP du dossier
+		$zip_path = $this->create_zip_from_folder( $temp_dir, $post_id );
+
+		if ( is_wp_error( $zip_path ) ) {
+			// Cleanup dossier
+			$files = glob( $temp_dir . '*' );
+			if ( $files ) {
+				array_map( 'unlink', $files );
+			}
+			@rmdir( $temp_dir );
+			
+			wp_die( esc_html( $zip_path->get_error_message() ) );
+		}
+
+		// Streamer le fichier
+		$this->stream_file_download( $zip_path, 'images-' . $article_slug . '.zip', 'application/zip' );
+
+		// Cleanup
+		$files = glob( $temp_dir . '*' );
+		if ( $files ) {
+			array_map( 'unlink', $files );
+		}
+		@rmdir( $temp_dir );
+		@unlink( $zip_path );
+
+		exit;
+	}
+
+	/**
+	 * Convertit une image en JPG
+	 *
+	 * @param string $source Chemin source.
+	 * @param string $dest   Chemin destination JPG.
+	 * @return bool Succès.
+	 */
+	private function convert_to_jpg( $source, $dest ) {
+		if ( ! file_exists( $source ) ) {
+			return false;
+		}
+
+		$ext = strtolower( pathinfo( $source, PATHINFO_EXTENSION ) );
+
+		// Si déjà JPG/JPEG, copier directement
+		if ( in_array( $ext, array( 'jpg', 'jpeg' ), true ) ) {
+			return copy( $source, $dest );
+		}
+
+		// Conversion vers JPG
+		$image = null;
+
+		if ( 'png' === $ext && function_exists( 'imagecreatefrompng' ) ) {
+			$image = @imagecreatefrompng( $source );
+		} elseif ( 'webp' === $ext && function_exists( 'imagecreatefromwebp' ) ) {
+			$image = @imagecreatefromwebp( $source );
+		} elseif ( 'gif' === $ext && function_exists( 'imagecreatefromgif' ) ) {
+			$image = @imagecreatefromgif( $source );
+		}
+
+		if ( $image && function_exists( 'imagejpeg' ) ) {
+			// Créer fond blanc pour PNG transparents
+			$width = imagesx( $image );
+			$height = imagesy( $image );
+			$output = imagecreatetruecolor( $width, $height );
+			
+			if ( $output ) {
+				$white = imagecolorallocate( $output, 255, 255, 255 );
+				imagefill( $output, 0, 0, $white );
+				imagecopy( $output, $image, 0, 0, 0, 0, $width, $height );
+				
+				$result = imagejpeg( $output, $dest, 90 );
+				
+				imagedestroy( $image );
+				imagedestroy( $output );
+				
+				return $result;
+			}
+			
+			imagedestroy( $image );
+		}
+
+		// Fallback : copier tel quel
+		return copy( $source, $dest );
+	}
+
+	/**
+	 * Crée un ZIP à partir d'un dossier
+	 *
+	 * @param string $folder  Chemin dossier.
+	 * @param int    $post_id ID post.
+	 * @return string|WP_Error Chemin ZIP.
+	 */
+	private function create_zip_from_folder( $folder, $post_id ) {
+		$temp_dir = get_temp_dir();
+		$zip_path = $temp_dir . 'argp-images-export-' . $post_id . '-' . time() . '.zip';
+
+		if ( class_exists( 'ZipArchive' ) ) {
+			$zip = new ZipArchive();
+			
+			if ( true !== $zip->open( $zip_path, ZipArchive::CREATE ) ) {
+				return new WP_Error( 'zip_error', __( 'Impossible de créer le ZIP.', 'ai-recipe-generator-pro' ) );
+			}
+
+			$files = glob( $folder . '*' );
+			if ( $files ) {
+				foreach ( $files as $file ) {
+					$zip->addFile( $file, basename( $file ) );
+				}
+			}
+
+			$zip->close();
+		} else {
+			// Fallback PclZip
+			require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
+			$zip = new PclZip( $zip_path );
+
+			$files = glob( $folder . '*' );
+			$file_list = array();
+			
+			if ( $files ) {
+				foreach ( $files as $file ) {
+					$file_list[] = array(
+						PCLZIP_ATT_FILE_NAME       => $file,
+						PCLZIP_ATT_FILE_NEW_FULL_NAME => basename( $file ),
+					);
+				}
+			}
+
+			if ( ! empty( $file_list ) ) {
+				$result = $zip->create( $file_list );
+				if ( 0 === $result ) {
+					return new WP_Error( 'pclzip_error', $zip->errorInfo( true ) );
+				}
+			}
+		}
+
+		return $zip_path;
+	}
+
+	/* ========================================
+	   HANDLER : EXPORT ZIP (Conservé pour compatibilité)
+	   ======================================== */
+
+	/**
+	 * Handler pour l'export ZIP des images (ancien format)
 	 */
 	public function handle_export_zip() {
 		// Récupérer et valider les paramètres

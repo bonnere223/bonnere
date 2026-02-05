@@ -567,11 +567,11 @@
 				html += '</a></p>';
 			}
 
-			// Boutons exports ZIP/TXT
+			// Boutons exports IMG/TXT
 			if (data.post_id) {
 				const postId = Array.isArray(data.post_id) ? data.post_id[0] : data.post_id;
-				const exportZipUrl = ajaxurl.replace('admin-ajax.php', 'admin-post.php') + 
-					'?action=argp_export_zip&post_id=' + postId + '&_wpnonce=' + 
+				const exportImagesUrl = ajaxurl.replace('admin-ajax.php', 'admin-post.php') + 
+					'?action=argp_export_images&post_id=' + postId + '&_wpnonce=' + 
 					(data.export_nonce || '');
 				const exportTxtUrl = ajaxurl.replace('admin-ajax.php', 'admin-post.php') + 
 					'?action=argp_export_txt&post_id=' + postId + '&_wpnonce=' + 
@@ -580,10 +580,13 @@
 				html += '<div class="argp-export-actions" style="margin-top: 20px; padding: 20px; background: #f6f7f7; border-radius: 8px;">';
 				html += '<h3 style="margin: 0 0 15px 0; font-size: 16px;">📦 Exporter les recettes</h3>';
 				html += '<p class="argp-result-actions">';
-				html += '<a href="' + exportZipUrl + '" class="button button-secondary">';
-				html += '<span class="dashicons dashicons-download"></span> Télécharger ZIP des images</a> ';
+				html += '<a href="' + exportImagesUrl + '" class="button button-secondary">';
+				html += '<span class="dashicons dashicons-format-image"></span> Télécharger IMG (dossier images)</a> ';
 				html += '<a href="' + exportTxtUrl + '" class="button button-secondary">';
 				html += '<span class="dashicons dashicons-media-text"></span> Télécharger TXT des recettes</a>';
+				html += '</p>';
+				html += '<p style="margin: 10px 0 0 0; font-size: 13px; color: #646970;">';
+				html += 'Images renommées : 1-titre.jpg, 2-titre.jpg, etc.';
 				html += '</p>';
 				html += '</div>';
 			}
