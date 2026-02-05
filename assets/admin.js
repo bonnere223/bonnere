@@ -427,6 +427,7 @@
 			const count = $('#argp_count').val();
 			const title = $('#argp_title').val().trim();
 			const status = $('#argp_status').val();
+			const format = $('input[name="argp_format"]:checked').val();
 
 			// Si titre rempli mais pas sujet, utiliser le titre comme sujet
 			if (!subject && title) {
@@ -448,10 +449,10 @@
 			ARGPAdmin.updateProgress(0, 'Initialisation...');
 			$('#argp-progress-logs').empty();
 
-			ARGPAdmin.startGeneration(subject, count, title, status);
+			ARGPAdmin.startGeneration(subject, count, title, status, format);
 		},
 
-		startGeneration: function(subject, count, title, status) {
+		startGeneration: function(subject, count, title, status, format) {
 			$.ajax({
 				url: argpAdmin.ajaxUrl,
 				type: 'POST',
@@ -461,7 +462,8 @@
 					subject: subject,
 					count: count,
 					title: title,
-					status: status
+					status: status,
+					format: format || 'tag'
 				},
 				success: function(response) {
 					if (response.success && response.data.job_id) {
@@ -554,13 +556,38 @@
 			$('#argp-progress-container').hide();
 			$('#argp-results-container').show();
 
-			let html = '<div class="notice notice-success inline"><p><strong>Article créé avec succès !</strong></p></div>';
+			let html = '<div class="notice notice-success inline"><p><strong>Article(s) créé(s) avec succès !</strong></p></div>';
+
+			if (data.post_id) {
+				html += '<p><strong>ID article(s) :</strong> ' + data.post_id + '</p>';
+			}
 
 			if (data.edit_link) {
 				html += '<p class="argp-result-actions">';
 				html += '<a href="' + data.edit_link + '" class="button button-primary button-large">';
 				html += '<span class="dashicons dashicons-edit"></span> Modifier l\'article';
 				html += '</a></p>';
+			}
+
+			// Boutons exports ZIP/TXT
+			if (data.post_id) {
+				const postId = Array.isArray(data.post_id) ? data.post_id[0] : data.post_id;
+				const exportZipUrl = ajaxurl.replace('admin-ajax.php', 'admin-post.php') + 
+					'?action=argp_export_zip&post_id=' + postId + '&_wpnonce=' + 
+					(data.export_nonce || '');
+				const exportTxtUrl = ajaxurl.replace('admin-ajax.php', 'admin-post.php') + 
+					'?action=argp_export_txt&post_id=' + postId + '&_wpnonce=' + 
+					(data.export_nonce || '');
+
+				html += '<div class="argp-export-actions" style="margin-top: 20px; padding: 20px; background: #f6f7f7; border-radius: 8px;">';
+				html += '<h3 style="margin: 0 0 15px 0; font-size: 16px;">📦 Exporter les recettes</h3>';
+				html += '<p class="argp-result-actions">';
+				html += '<a href="' + exportZipUrl + '" class="button button-secondary">';
+				html += '<span class="dashicons dashicons-download"></span> Télécharger ZIP des images</a> ';
+				html += '<a href="' + exportTxtUrl + '" class="button button-secondary">';
+				html += '<span class="dashicons dashicons-media-text"></span> Télécharger TXT des recettes</a>';
+				html += '</p>';
+				html += '</div>';
 			}
 
 			if (data.errors && data.errors.length > 0) {
@@ -571,7 +598,7 @@
 				html += '</ul></div>';
 			}
 
-			html += '<p class="argp-result-actions"><button type="button" id="argp-generate-another" class="button button-secondary">';
+			html += '<p class="argp-result-actions" style="margin-top: 20px;"><button type="button" id="argp-generate-another" class="button button-secondary">';
 			html += '<span class="dashicons dashicons-plus"></span> Générer un autre article</button></p>';
 
 			$('#argp-results-content').html(html);

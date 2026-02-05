@@ -258,6 +258,42 @@ class ARGP_Admin {
 									</div>
 								</div>
 
+								<!-- Format de publication -->
+								<div class="argp-field-group">
+									<label class="argp-label">
+										<?php esc_html_e( 'Format de publication', 'ai-recipe-generator-pro' ); ?>
+									</label>
+									
+									<div class="argp-radio-card">
+										<label class="argp-radio-option">
+											<input 
+												type="radio" 
+												name="argp_format" 
+												id="argp_format_global" 
+												value="global"
+											/>
+											<div class="argp-radio-content">
+												<strong><?php esc_html_e( '1 Article Global', 'ai-recipe-generator-pro' ); ?></strong>
+												<p><?php esc_html_e( 'Toutes les recettes dans un seul article avec intro', 'ai-recipe-generator-pro' ); ?></p>
+											</div>
+										</label>
+
+										<label class="argp-radio-option">
+											<input 
+												type="radio" 
+												name="argp_format" 
+												id="argp_format_tag" 
+												value="tag"
+												checked
+											/>
+											<div class="argp-radio-content">
+												<strong>📌 <?php esc_html_e( '1 Article par Recette + Tag', 'ai-recipe-generator-pro' ); ?></strong>
+												<p><?php esc_html_e( 'Crée un tag et un article séparé pour chaque recette avec liens croisés', 'ai-recipe-generator-pro' ); ?></p>
+											</div>
+										</label>
+									</div>
+								</div>
+
 								<!-- Statut publication -->
 								<div class="argp-field-group">
 									<label for="argp_status" class="argp-label">
