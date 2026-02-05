@@ -1,0 +1,764 @@
+/**
+ * Styles Admin pour AI Recipe Generator Pro
+ *
+ * @package AI_Recipe_Generator_Pro
+ */
+
+/* ========================================
+   GÉNÉRAL
+   ======================================== */
+
+.argp-admin-page {
+	max-width: 1200px;
+}
+
+.argp-admin-page h1 {
+	margin-bottom: 10px;
+}
+
+.argp-admin-page .description {
+	font-size: 14px;
+	color: #646970;
+	margin-bottom: 20px;
+}
+
+.required {
+	color: #d63638;
+}
+
+/* ========================================
+   FORMULAIRE DE GÉNÉRATION
+   ======================================== */
+
+.argp-generate-form-container {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 20px;
+	margin-top: 20px;
+}
+
+.argp-form .form-table {
+	margin-top: 0;
+}
+
+.argp-title-field-wrapper {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+}
+
+.argp-title-field-wrapper input[type="text"] {
+	flex: 1;
+}
+
+#argp-suggest-title {
+	flex-shrink: 0;
+}
+
+/* ========================================
+   SUGGESTIONS DE TITRES
+   ======================================== */
+
+.argp-suggestions-container {
+	margin-top: 15px;
+	padding: 15px;
+	background: #f0f6fc;
+	border: 1px solid #c3dfff;
+	border-radius: 4px;
+}
+
+.argp-suggestions-label {
+	margin: 0 0 10px 0;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.argp-suggestions-list {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.argp-suggestion-item {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 16px;
+	background: #fff;
+	border: 2px solid #dcdcde;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.argp-suggestion-item:hover {
+	border-color: #2271b1;
+	background: #f6f7f7;
+	transform: translateX(5px);
+}
+
+.argp-suggestion-item.argp-selected {
+	border-color: #00a32a;
+	background: #f0f6fc;
+}
+
+.argp-suggestion-number {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	background: #2271b1;
+	color: #fff;
+	border-radius: 50%;
+	font-weight: 600;
+	font-size: 13px;
+	flex-shrink: 0;
+}
+
+.argp-suggestion-text {
+	flex: 1;
+	color: #1d2327;
+	font-size: 14px;
+	line-height: 1.4;
+}
+
+/* ========================================
+   RÉSULTATS (TODO Phase 3-5)
+   ======================================== */
+
+.argp-results-container {
+	margin-top: 30px;
+	padding: 20px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+}
+
+#argp-results-content {
+	margin-top: 15px;
+}
+
+/* ========================================
+   PAGE RÉGLAGES
+   ======================================== */
+
+.argp-settings-container {
+	max-width: 900px;
+}
+
+.argp-settings-container form {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 20px;
+	margin-bottom: 20px;
+}
+
+.argp-api-key-field {
+	font-family: 'Courier New', monospace;
+}
+
+.argp-toggle-visibility {
+	margin-left: 5px;
+}
+
+.argp-key-preview {
+	display: inline-block;
+	margin-left: 10px;
+	font-family: 'Courier New', monospace;
+	color: #646970;
+	font-size: 12px;
+}
+
+/* ========================================
+   DIAGNOSTICS
+   ======================================== */
+
+.argp-diagnostics-section {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 20px;
+	margin-top: 20px;
+}
+
+.argp-diagnostics-section h2 {
+	margin-top: 0;
+}
+
+#argp-run-diagnostics {
+	margin-bottom: 20px;
+}
+
+.argp-diagnostics-results {
+	margin-top: 20px;
+}
+
+.argp-diagnostics-badges {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	gap: 15px;
+}
+
+.argp-diagnostic-item {
+	padding: 15px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
+/* ========================================
+   BADGES DE STATUT
+   ======================================== */
+
+.argp-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 16px;
+	border-radius: 4px;
+	font-weight: 600;
+	font-size: 13px;
+	margin-bottom: 10px;
+}
+
+.argp-badge-success {
+	background: #00a32a;
+	color: #fff;
+	border: 2px solid #008a20;
+}
+
+.argp-badge-error {
+	background: #d63638;
+	color: #fff;
+	border: 2px solid #b32d2e;
+}
+
+.argp-badge-warning {
+	background: #f0b849;
+	color: #1d2327;
+	border: 2px solid #dba617;
+}
+
+.argp-badge-info {
+	background: #2271b1;
+	color: #fff;
+	border: 2px solid #135e96;
+}
+
+.argp-badge-icon {
+	font-size: 16px;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.argp-badge-label {
+	font-size: 13px;
+}
+
+/* ========================================
+   MESSAGES DE DIAGNOSTICS
+   ======================================== */
+
+.argp-diagnostic-message {
+	font-size: 14px;
+	color: #1d2327;
+	margin-bottom: 8px;
+	line-height: 1.5;
+}
+
+.argp-diagnostic-details {
+	margin-top: 10px;
+	padding: 10px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	font-family: 'Courier New', monospace;
+	font-size: 12px;
+	color: #646970;
+	overflow-x: auto;
+}
+
+.argp-diagnostic-details small {
+	display: block;
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+/* ========================================
+   NOTICES INLINE
+   ======================================== */
+
+.notice.inline {
+	margin: 15px 0;
+	padding: 12px;
+}
+
+/* Amélioration des notices WordPress */
+.notice.is-dismissible {
+	position: relative;
+	padding-right: 38px;
+}
+
+/* État d'erreur dans les zones de suggestions */
+.argp-suggestions-container.has-error {
+	background: #fcf0f1;
+	border-color: #d63638;
+}
+
+.argp-suggestions-container.has-error .argp-suggestions-label {
+	color: #d63638;
+}
+
+/* Zone d'erreur spécifique */
+.argp-error-message {
+	padding: 12px 16px;
+	background: #fcf0f1;
+	border-left: 4px solid #d63638;
+	border-radius: 4px;
+	color: #50575e;
+	margin: 15px 0;
+}
+
+.argp-error-message strong {
+	color: #d63638;
+	display: block;
+	margin-bottom: 5px;
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media screen and (max-width: 782px) {
+	.argp-title-field-wrapper {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.argp-title-field-wrapper input[type="text"] {
+		width: 100%;
+	}
+
+	#argp-suggest-title {
+		width: 100%;
+	}
+
+	.argp-diagnostics-badges {
+		grid-template-columns: 1fr;
+	}
+
+	.argp-suggestion-item {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+	}
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(-10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.argp-diagnostics-results,
+.argp-suggestions-container {
+	animation: fadeIn 0.3s ease;
+}
+
+/* ========================================
+   LOADING STATES
+   ======================================== */
+
+button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+button.argp-loading {
+	opacity: 0.8;
+	position: relative;
+}
+
+/* Spinner WordPress natif */
+.spinner.is-active {
+	display: inline-block;
+	visibility: visible;
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	vertical-align: middle;
+}
+
+/* Animation ellipsis pour les boutons sans spinner */
+button:disabled:not(.argp-loading)::after {
+	content: "...";
+	animation: ellipsis 1.5s infinite;
+}
+
+@keyframes ellipsis {
+	0%, 20% {
+		content: ".";
+	}
+	40% {
+		content: "..";
+	}
+	60%, 100% {
+		content: "...";
+	}
+}
+
+/* État de chargement pour les conteneurs */
+.argp-loading-overlay {
+	position: relative;
+}
+
+.argp-loading-overlay::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(255, 255, 255, 0.8);
+	z-index: 10;
+	border-radius: 4px;
+}
+
+.argp-loading-overlay::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	width: 30px;
+	height: 30px;
+	margin: -15px 0 0 -15px;
+	border: 3px solid #f3f3f3;
+	border-top: 3px solid #2271b1;
+	border-radius: 50%;
+	animation: spin 1s linear infinite;
+	z-index: 11;
+}
+
+@keyframes spin {
+	0% { transform: rotate(0deg); }
+	100% { transform: rotate(360deg); }
+}
+
+/* ========================================
+   PHASE 5: ACCESSIBILITÉ & ÉTATS
+   ======================================== */
+
+/* États disabled améliorés */
+button:disabled,
+button[aria-busy="true"] {
+	opacity: 0.5;
+	cursor: not-allowed;
+	filter: grayscale(50%);
+}
+
+button:disabled:hover,
+button[aria-busy="true"]:hover {
+	transform: none;
+}
+
+/* Zones aria-live */
+[aria-live] {
+	position: relative;
+}
+
+/* Focus visible pour accessibilité */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: 2px;
+}
+
+/* États de chargement accessibles */
+.argp-loading[aria-busy="true"]::before {
+	content: '';
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	border: 2px solid #fff;
+	border-top-color: transparent;
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+	margin-right: 8px;
+	vertical-align: middle;
+}
+
+/* ========================================
+   DARK MODE SUPPORT (WordPress 5.7+)
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+	.argp-generate-form-container,
+	.argp-settings-container form,
+	.argp-diagnostics-section,
+	.argp-results-container,
+	.argp-progress-container {
+		background: #1d2327;
+		border-color: #3c434a;
+	}
+
+	.argp-diagnostic-item {
+		background: #2c3338;
+		border-color: #3c434a;
+	}
+
+	.argp-suggestions-container {
+		background: #1d2327;
+		border-color: #3c434a;
+	}
+
+	.argp-suggestion-item {
+		background: #2c3338;
+		border-color: #3c434a;
+		color: #f0f0f1;
+	}
+
+	.argp-suggestion-item:hover {
+		background: #1d2327;
+		border-color: #72aee6;
+	}
+
+	.argp-suggestion-text,
+	.argp-diagnostic-message,
+	.argp-suggestions-label {
+		color: #f0f0f1;
+	}
+
+	.argp-diagnostic-details {
+		background: #1d2327;
+		border-color: #3c434a;
+		color: #a7aaad;
+	}
+
+	.argp-progress-status {
+		background: #2c3338;
+		color: #f0f0f1;
+	}
+
+	.argp-progress-logs {
+		background: #2c3338;
+		border-color: #3c434a;
+	}
+
+	.argp-log-entry {
+		background: #1d2327;
+	}
+
+	.argp-log-message,
+	.argp-log-time {
+		color: #f0f0f1;
+	}
+}
+
+/* ========================================
+   PHASE 3: BARRE DE PROGRESSION
+   ======================================== */
+
+.argp-progress-container {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 20px;
+	margin-top: 20px;
+}
+
+.argp-progress-container h2 {
+	margin-top: 0;
+	color: #1d2327;
+}
+
+/* Barre de progression */
+.argp-progress-bar-wrapper {
+	margin: 20px 0;
+}
+
+.argp-progress-bar {
+	height: 30px;
+	background: #f0f0f1;
+	border-radius: 15px;
+	overflow: hidden;
+	position: relative;
+	box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.argp-progress-bar-fill {
+	height: 100%;
+	background: linear-gradient(90deg, #2271b1 0%, #135e96 100%);
+	border-radius: 15px;
+	transition: width 0.5s ease;
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 30px;
+}
+
+.argp-progress-percent {
+	color: #fff;
+	font-weight: 600;
+	font-size: 13px;
+	text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* Message de statut */
+.argp-progress-status {
+	text-align: center;
+	font-size: 14px;
+	color: #50575e;
+	margin: 15px 0;
+	padding: 10px;
+	background: #f6f7f7;
+	border-radius: 4px;
+	font-weight: 500;
+}
+
+/* Logs */
+.argp-progress-logs {
+	margin-top: 20px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	padding: 15px;
+	max-height: 300px;
+	overflow-y: auto;
+	font-family: 'Courier New', monospace;
+	font-size: 12px;
+}
+
+.argp-log-entry {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	margin-bottom: 5px;
+	border-radius: 3px;
+	background: #fff;
+	border-left: 3px solid #dcdcde;
+}
+
+.argp-log-entry .dashicons {
+	flex-shrink: 0;
+	width: 16px;
+	height: 16px;
+	font-size: 16px;
+}
+
+.argp-log-time {
+	flex-shrink: 0;
+	color: #787c82;
+	font-size: 11px;
+	min-width: 70px;
+}
+
+.argp-log-message {
+	flex: 1;
+	color: #1d2327;
+}
+
+/* Log types */
+.argp-log-success {
+	border-left-color: #00a32a;
+}
+
+.argp-log-success .dashicons {
+	color: #00a32a;
+}
+
+.argp-log-error {
+	border-left-color: #d63638;
+	background: #fcf0f1;
+}
+
+.argp-log-error .dashicons {
+	color: #d63638;
+}
+
+.argp-log-info {
+	border-left-color: #2271b1;
+}
+
+.argp-log-info .dashicons {
+	color: #2271b1;
+}
+
+/* Zone de résultats */
+.argp-results-container {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 20px;
+	margin-top: 20px;
+}
+
+.argp-results-container h2 {
+	margin-top: 0;
+	color: #00a32a;
+}
+
+.argp-result-actions {
+	margin-top: 15px;
+}
+
+.argp-result-actions .button {
+	margin-right: 10px;
+}
+
+/* Animation de la barre */
+@keyframes progress-pulse {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.8;
+	}
+}
+
+.argp-progress-bar-fill:not([style*="width: 100%"]) {
+	animation: progress-pulse 2s ease-in-out infinite;
+}
+
+/* ========================================
+   UTILITAIRES
+   ======================================== */
+
+.argp-mt-10 {
+	margin-top: 10px;
+}
+
+.argp-mt-20 {
+	margin-top: 20px;
+}
+
+.argp-mb-10 {
+	margin-bottom: 10px;
+}
+
+.argp-mb-20 {
+	margin-bottom: 20px;
+}
+
+.argp-text-center {
+	text-align: center;
+}
+
+.argp-hidden {
+	display: none;
+}
