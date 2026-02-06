@@ -84,8 +84,8 @@ class ARGP_Ajax {
 			);
 		}
 
-		// Vérifier les permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
+		// Vérifier les permissions - Éditeur et supérieur pour génération
+		if ( ! current_user_can( 'edit_posts' ) ) {
 			wp_send_json_error(
 				array(
 					'message' => __( 'Vous n\'avez pas les permissions nécessaires.', 'ai-recipe-generator-pro' ),

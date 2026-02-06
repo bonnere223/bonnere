@@ -156,8 +156,8 @@ class ARGP_Admin {
 	 * Affiche la page "Générer" - REFONTE UX PREMIUM
 	 */
 	public function render_generate_page() {
-		// Vérifier les permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
+		// Vérifier les permissions - Éditeur et supérieur
+		if ( ! current_user_can( 'edit_posts' ) ) {
 			wp_die( esc_html__( 'Vous n\'avez pas les permissions nécessaires.', 'ai-recipe-generator-pro' ) );
 		}
 
