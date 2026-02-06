@@ -847,13 +847,27 @@ class ARGP_Ajax {
 			$user_prompt = str_replace( '{theme}', $subject, $user_prompt );
 			$user_prompt = str_replace( '{item}', $subject, $user_prompt );
 			
-			// Ajouter contrainte JSON si pas présente dans le prompt
-			if ( stripos( $user_prompt, 'json' ) === false ) {
-				$user_prompt .= "\n\nIMPORTANT : Réponds en JSON avec cette structure exacte : ";
-				$user_prompt .= "{\"intro\": \"texte intro\", \"recipes\": [{\"name\": \"nom recette\", \"ingredients\": [\"ingredient1\"], \"instructions\": [\"step1\"], \"image_prompt\": \"prompt en anglais\"}]}";
-			}
+			// Insister sur le nombre EXACT de recettes
+			$user_prompt = "\nGénère EXACTEMENT {$count} recette(s), pas plus, pas moins.\n\n" . $user_prompt;
 			
-			ARGP_Settings::log( "Utilisation prompt personnalisé pour génération", 'info' );
+			// Ajouter contrainte JSON APRÈS le prompt personnalisé
+			$user_prompt .= "\n\n--- FORMAT DE SORTIE OBLIGATOIRE ---\n";
+			$user_prompt .= "Réponds UNIQUEMENT en JSON avec cette structure exacte :\n";
+			$user_prompt .= "{\n";
+			$user_prompt .= "  \"intro\": \"texte introduction (2-3 phrases)\",\n";
+			$user_prompt .= "  \"recipes\": [\n";
+			$user_prompt .= "    {\n";
+			$user_prompt .= "      \"name\": \"nom de la recette\",\n";
+			$user_prompt .= "      \"ingredients\": [\"ingrédient 1\", \"ingrédient 2\", ...],\n";
+			$user_prompt .= "      \"instructions\": [\"étape 1\", \"étape 2\", ...],\n";
+			$user_prompt .= "      \"image_prompt\": \"prompt image en anglais\"\n";
+			$user_prompt .= "    }\n";
+			$user_prompt .= "    // RÉPÉTER POUR LES {$count} RECETTES\n";
+			$user_prompt .= "  ]\n";
+			$user_prompt .= "}\n";
+			$user_prompt .= "PAS de texte avant ou après le JSON. UNIQUEMENT le JSON valide.";
+			
+			ARGP_Settings::log( "Utilisation prompt personnalisé pour {$count} recette(s)", 'info' );
 		} else {
 			// Prompt par défaut si aucun personnalisé
 			$user_prompt = "Génère un article de blog complet sur le thème : \"{$subject}\".\n\n";
@@ -940,11 +954,23 @@ class ARGP_Ajax {
 		$json_data = json_decode( $content, true );
 
 		if ( null === $json_data || ! isset( $json_data['intro'] ) || ! isset( $json_data['recipes'] ) ) {
+			ARGP_Settings::log( 'JSON invalide ou structure manquante', 'error' );
 			return new WP_Error( 'openai_error', 'JSON invalide' );
 		}
 
-		if ( count( $json_data['recipes'] ) !== $count ) {
-			return new WP_Error( 'openai_error', 'Nombre de recettes incorrect' );
+		$received_count = count( $json_data['recipes'] );
+		
+		// Log du nombre de recettes reçues
+		ARGP_Settings::log( "OpenAI a généré {$received_count} recette(s), demandé : {$count}", 'info' );
+
+		// Validation assouplie : accepter au moins 1 recette
+		if ( $received_count < 1 ) {
+			return new WP_Error( 'openai_error', 'Aucune recette générée' );
+		}
+
+		// Si moins de recettes que demandé, logger un warning mais continuer
+		if ( $received_count < $count ) {
+			ARGP_Settings::log( "Attention : seulement {$received_count}/{$count} recette(s) générée(s)", 'warning' );
 		}
 
 		return $json_data;
