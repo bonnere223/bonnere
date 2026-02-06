@@ -505,6 +505,24 @@ class ARGP_Ajax {
 	 * Mode GLOBAL : 1 article avec toutes les recettes
 	 */
 	private function create_single_global_post( &$job ) {
+		// Vérifier si l'article n'a pas déjà été créé
+		if ( ! empty( $job['created_post_id'] ) ) {
+			// Article déjà créé, passer au step 2
+			$job['step'] = 2;
+			
+			ARGP_Settings::log( "Article déjà créé (ID: {$job['created_post_id']}), skip création", 'info' );
+			
+			return array(
+				'done'     => false,
+				'progress' => 30,
+				'message'  => sprintf(
+					__( 'Article existant (ID: %d). Génération des images...', 'ai-recipe-generator-pro' ),
+					$job['created_post_id']
+				),
+				'post_id'  => $job['created_post_id'],
+			);
+		}
+
 		$openai_data = $job['openai_json'];
 		$title = ! empty( $job['title'] ) ? $job['title'] : $job['subject'];
 
@@ -532,6 +550,8 @@ class ARGP_Ajax {
 
 		$job['created_post_id'] = $post_id;
 		$job['step'] = 2;
+
+		ARGP_Settings::log( "Article créé (ID: {$post_id}, Titre: {$title})", 'info' );
 
 		return array(
 			'done'     => false,
