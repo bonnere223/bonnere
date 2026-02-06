@@ -79,6 +79,15 @@ class ARGP_Settings {
 			'argp_api_keys_section'
 		);
 
+		// Champ : Modèle OpenAI
+		add_settings_field(
+			'openai_model',
+			__( 'Modèle OpenAI', 'ai-recipe-generator-pro' ),
+			array( $this, 'render_openai_model_field' ),
+			'argp-settings',
+			'argp_api_keys_section'
+		);
+
 		// Champ : Replicate API Key
 		add_settings_field(
 			'replicate_api_key',
@@ -195,6 +204,38 @@ class ARGP_Settings {
 			esc_html_e( 'Les clés API sont chiffrées avant stockage avec OpenSSL (AES-256-CBC).', 'ai-recipe-generator-pro' );
 			echo '</p></div>';
 		}
+	}
+
+	/**
+	 * Affiche le champ Modèle OpenAI
+	 */
+	public function render_openai_model_field() {
+		$options = get_option( $this->option_name, array() );
+		$value   = isset( $options['openai_model'] ) ? $options['openai_model'] : 'gpt-4o';
+
+		?>
+		<select 
+			id="argp_openai_model" 
+			name="<?php echo esc_attr( $this->option_name ); ?>[openai_model]"
+			class="regular-text"
+		>
+			<option value="gpt-4o" <?php selected( $value, 'gpt-4o' ); ?>>
+				GPT-4o (Recommandé) - ~$0.03/recette
+			</option>
+			<option value="gpt-4o-mini" <?php selected( $value, 'gpt-4o-mini' ); ?>>
+				GPT-4o Mini (Économique) - ~$0.015/recette (-50%)
+			</option>
+			<option value="gpt-4-turbo" <?php selected( $value, 'gpt-4-turbo' ); ?>>
+				GPT-4 Turbo - ~$0.03/recette
+			</option>
+			<option value="gpt-3.5-turbo" <?php selected( $value, 'gpt-3.5-turbo' ); ?>>
+				GPT-3.5 Turbo (Tests) - ~$0.003/recette (-90%)
+			</option>
+		</select>
+		<p class="description">
+			<?php esc_html_e( 'Modèle utilisé pour générer le texte. GPT-4o recommandé pour la qualité, GPT-3.5 pour économiser.', 'ai-recipe-generator-pro' ); ?>
+		</p>
+		<?php
 	}
 
 	/**
@@ -540,6 +581,13 @@ class ARGP_Settings {
 		// Sanitize Manual Titles (textarea)
 		if ( isset( $input['manual_titles'] ) ) {
 			$sanitized['manual_titles'] = sanitize_textarea_field( $input['manual_titles'] );
+		}
+
+		// Sanitize OpenAI Model
+		if ( isset( $input['openai_model'] ) ) {
+			$model = sanitize_text_field( $input['openai_model'] );
+			$allowed_models = array( 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo' );
+			$sanitized['openai_model'] = in_array( $model, $allowed_models, true ) ? $model : 'gpt-4o';
 		}
 
 		// Sanitize Generation Order

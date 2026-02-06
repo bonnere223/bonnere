@@ -860,8 +860,11 @@ class ARGP_Ajax {
 		$user_prompt .= "}\n\n";
 		$user_prompt .= "IMPORTANT : Réponds UNIQUEMENT avec le JSON, sans aucun texte avant ou après.";
 
+		// Récupérer le modèle depuis réglages
+		$model = ARGP_Settings::get_option( 'openai_model', 'gpt-4o' );
+
 		$body = array(
-			'model'       => 'gpt-4o',
+			'model'       => $model,
 			'messages'    => array(
 				array(
 					'role'    => 'system',
