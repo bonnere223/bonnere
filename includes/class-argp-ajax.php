@@ -860,11 +860,13 @@ class ARGP_Ajax {
 			$user_prompt .= "      \"name\": \"nom de la recette\",\n";
 			$user_prompt .= "      \"ingredients\": [\"ingrédient 1\", \"ingrédient 2\", ...],\n";
 			$user_prompt .= "      \"instructions\": [\"étape 1\", \"étape 2\", ...],\n";
+			$user_prompt .= "      \"tips\": \"texte avec astuces, ingrédient à échanger, astuce cuisson (si demandé dans prompt)\",\n";
 			$user_prompt .= "      \"image_prompt\": \"prompt image en anglais\"\n";
 			$user_prompt .= "    }\n";
 			$user_prompt .= "    // RÉPÉTER POUR LES {$count} RECETTES\n";
 			$user_prompt .= "  ]\n";
 			$user_prompt .= "}\n";
+			$user_prompt .= "Le champ 'tips' doit contenir TOUT le contenu additionnel demandé dans le prompt (astuces, substitutions, etc.).\n";
 			$user_prompt .= "PAS de texte avant ou après le JSON. UNIQUEMENT le JSON valide.";
 			
 			ARGP_Settings::log( "Utilisation prompt personnalisé pour {$count} recette(s)", 'info' );
@@ -1183,18 +1185,29 @@ class ARGP_Ajax {
 		// Ingrédients
 		$content .= "\n\n" . '<h3>' . __( 'Ingrédients', 'ai-recipe-generator-pro' ) . '</h3>';
 		$content .= "\n" . '<ul class="recipe-ingredients">';
-		foreach ( $recipe['ingredients'] as $ingredient ) {
-			$content .= "\n  " . '<li>' . esc_html( $ingredient ) . '</li>';
+		if ( isset( $recipe['ingredients'] ) && is_array( $recipe['ingredients'] ) ) {
+			foreach ( $recipe['ingredients'] as $ingredient ) {
+				$content .= "\n  " . '<li>' . esc_html( $ingredient ) . '</li>';
+			}
 		}
 		$content .= "\n" . '</ul>';
 
 		// Instructions
 		$content .= "\n\n" . '<h3>' . __( 'Instructions', 'ai-recipe-generator-pro' ) . '</h3>';
 		$content .= "\n" . '<ol class="recipe-instructions">';
-		foreach ( $recipe['instructions'] as $instruction ) {
-			$content .= "\n  " . '<li>' . esc_html( $instruction ) . '</li>';
+		if ( isset( $recipe['instructions'] ) && is_array( $recipe['instructions'] ) ) {
+			foreach ( $recipe['instructions'] as $instruction ) {
+				$content .= "\n  " . '<li>' . esc_html( $instruction ) . '</li>';
+			}
 		}
 		$content .= "\n" . '</ol>';
+
+		// Contenu additionnel (astuces, etc.) si présent
+		if ( isset( $recipe['tips'] ) && ! empty( $recipe['tips'] ) ) {
+			$content .= "\n\n" . '<div class="recipe-tips" style="margin-top: 20px; padding: 16px; background: rgba(102, 126, 234, 0.1); border-left: 3px solid #667eea; border-radius: 8px;">';
+			$content .= wpautop( wp_kses_post( $recipe['tips'] ) );
+			$content .= '</div>';
+		}
 
 		// Mettre à jour le post
 		wp_update_post(
