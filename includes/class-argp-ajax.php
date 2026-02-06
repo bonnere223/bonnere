@@ -905,6 +905,17 @@ class ARGP_Ajax {
 		// Récupérer le modèle depuis réglages
 		$model = ARGP_Settings::get_option( 'openai_model', 'gpt-4o' );
 
+		// Calculer max_tokens dynamiquement selon nombre de recettes
+		// ~400 tokens par recette (ingrédients + instructions + astuces)
+		$estimated_tokens = 500 + ( $count * 400 );
+		$max_tokens = min( 16000, max( 3000, $estimated_tokens ) );
+
+		// Calculer timeout dynamiquement selon nombre de recettes
+		// ~3-4s par recette pour générer
+		$timeout = min( 180, max( 60, 30 + ( $count * 4 ) ) );
+
+		ARGP_Settings::log( "Génération {$count} recettes - max_tokens: {$max_tokens}, timeout: {$timeout}s", 'info' );
+
 		$body = array(
 			'model'       => $model,
 			'messages'    => array(
@@ -918,7 +929,7 @@ class ARGP_Ajax {
 				),
 			),
 			'temperature' => 0.7,
-			'max_tokens'  => 3000,
+			'max_tokens'  => $max_tokens,
 			'response_format' => array(
 				'type' => 'json_object',
 			),
@@ -927,7 +938,7 @@ class ARGP_Ajax {
 		$response = wp_remote_post(
 			'https://api.openai.com/v1/chat/completions',
 			array(
-				'timeout' => 60,
+				'timeout' => $timeout,
 				'headers' => array(
 					'Content-Type'  => 'application/json',
 					'Authorization' => 'Bearer ' . $api_key,
