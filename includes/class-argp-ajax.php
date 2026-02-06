@@ -446,6 +446,24 @@ class ARGP_Ajax {
 	 * @return array Résultat de l'étape.
 	 */
 	private function job_step_generate_openai( &$job ) {
+		// Estimer temps pour grandes générations
+		$count = $job['count'];
+		$estimated_time = 10 + ( $count * 3 ); // ~3s par recette
+		
+		// Message d'attente pour grandes générations
+		if ( $count >= 10 && ! isset( $job['openai_started'] ) ) {
+			$job['openai_started'] = time();
+			return array(
+				'done'     => false,
+				'progress' => 5,
+				'message'  => sprintf(
+					__( '⏳ Génération du texte pour %d recettes (temps estimé : ~%d secondes)...', 'ai-recipe-generator-pro' ),
+					$count,
+					$estimated_time
+				),
+			);
+		}
+
 		$result = $this->openai_generate_recipes( $job['subject'], $job['count'] );
 
 		if ( is_wp_error( $result ) ) {
@@ -461,10 +479,15 @@ class ARGP_Ajax {
 		$job['openai_json'] = $result;
 		$job['step'] = 1;
 
+		$generation_time = isset( $job['openai_started'] ) ? ( time() - $job['openai_started'] ) : 0;
+		
 		return array(
 			'done'     => false,
 			'progress' => 20,
-			'message'  => __( 'Contenu généré avec succès. Création de l\'article...', 'ai-recipe-generator-pro' ),
+			'message'  => sprintf(
+				__( 'Contenu généré avec succès en %ds. Création de l\'article...', 'ai-recipe-generator-pro' ),
+				$generation_time
+			),
 		);
 	}
 
@@ -911,10 +934,10 @@ class ARGP_Ajax {
 		$max_tokens = min( 16000, max( 3000, $estimated_tokens ) );
 
 		// Calculer timeout dynamiquement selon nombre de recettes
-		// ~3-4s par recette pour générer
-		$timeout = min( 180, max( 60, 30 + ( $count * 4 ) ) );
+		// ~4-5s par recette pour générer (conservateur)
+		$timeout = min( 240, max( 90, 40 + ( $count * 5 ) ) );
 
-		ARGP_Settings::log( "Génération {$count} recettes - max_tokens: {$max_tokens}, timeout: {$timeout}s", 'info' );
+		ARGP_Settings::log( "Génération {$count} recettes - max_tokens: {$max_tokens}, timeout: {$timeout}s, modèle: {$model}", 'info' );
 
 		$body = array(
 			'model'       => $model,
