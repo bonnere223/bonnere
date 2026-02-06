@@ -822,6 +822,7 @@ class ARGP_Ajax {
 
 	/**
 	 * Génère des recettes complètes avec OpenAI
+	 * UTILISE LE PROMPT PERSONNALISÉ depuis Réglages
 	 *
 	 * @param string $subject Sujet/Thème.
 	 * @param int    $count   Nombre de recettes.
@@ -831,34 +832,59 @@ class ARGP_Ajax {
 		// PHASE 5: Utiliser clé déchiffrée
 		$api_key = ARGP_Settings::get_decrypted_key( 'openai_api_key' );
 
+		// Récupérer le prompt personnalisé depuis Réglages
+		$custom_prompt = ARGP_Settings::get_option( 'prompt_text', '' );
+
+		// Construire le user prompt
+		if ( ! empty( $custom_prompt ) ) {
+			// Utiliser le prompt personnalisé
+			$user_prompt = $custom_prompt;
+			
+			// Remplacer les variables
+			$user_prompt = str_replace( '{titre}', $subject, $user_prompt );
+			$user_prompt = str_replace( '{count}', $count, $user_prompt );
+			$user_prompt = str_replace( '{nombre}', $count, $user_prompt );
+			$user_prompt = str_replace( '{theme}', $subject, $user_prompt );
+			$user_prompt = str_replace( '{item}', $subject, $user_prompt );
+			
+			// Ajouter contrainte JSON si pas présente dans le prompt
+			if ( stripos( $user_prompt, 'json' ) === false ) {
+				$user_prompt .= "\n\nIMPORTANT : Réponds en JSON avec cette structure exacte : ";
+				$user_prompt .= "{\"intro\": \"texte intro\", \"recipes\": [{\"name\": \"nom recette\", \"ingredients\": [\"ingredient1\"], \"instructions\": [\"step1\"], \"image_prompt\": \"prompt en anglais\"}]}";
+			}
+			
+			ARGP_Settings::log( "Utilisation prompt personnalisé pour génération", 'info' );
+		} else {
+			// Prompt par défaut si aucun personnalisé
+			$user_prompt = "Génère un article de blog complet sur le thème : \"{$subject}\".\n\n";
+			$user_prompt .= "L'article doit contenir :\n";
+			$user_prompt .= "- Une introduction engageante (2-3 phrases)\n";
+			$user_prompt .= "- Exactement {$count} recette(s) détaillée(s)\n\n";
+			$user_prompt .= "Pour chaque recette, fournis :\n";
+			$user_prompt .= "- name : nom de la recette (court et accrocheur)\n";
+			$user_prompt .= "- ingredients : liste des ingrédients (array de strings)\n";
+			$user_prompt .= "- instructions : étapes de préparation (array de strings, numérotées)\n";
+			$user_prompt .= "- image_prompt : prompt pour générer une photo réaliste de la recette (en anglais, style 'professional food photography of...')\n\n";
+			$user_prompt .= "Format JSON attendu :\n";
+			$user_prompt .= "{\n";
+			$user_prompt .= "  \"intro\": \"Texte d'introduction...\",\n";
+			$user_prompt .= "  \"recipes\": [\n";
+			$user_prompt .= "    {\n";
+			$user_prompt .= "      \"name\": \"Nom de la recette\",\n";
+			$user_prompt .= "      \"ingredients\": [\"Ingrédient 1\", \"Ingrédient 2\"],\n";
+			$user_prompt .= "      \"instructions\": [\"Étape 1\", \"Étape 2\"],\n";
+			$user_prompt .= "      \"image_prompt\": \"professional food photography of...\"\n";
+			$user_prompt .= "    }\n";
+			$user_prompt .= "  ]\n";
+			$user_prompt .= "}\n\n";
+			$user_prompt .= "IMPORTANT : Réponds UNIQUEMENT avec le JSON, sans aucun texte avant ou après.";
+		}
+
 		$system_prompt = "Tu es un chef cuisinier et rédacteur culinaire professionnel. " .
 			"Tu génères du contenu pour un blog de recettes grand public en français. " .
 			"Tes recettes sont claires, gourmandes, réalisables, et optimisées SEO. " .
 			"Tu ne donnes jamais de conseils médicaux ou d'allégations santé non prouvées. " .
 			"Tu réponds UNIQUEMENT en JSON valide sans markdown.";
-
-		$user_prompt = "Génère un article de blog complet sur le thème : \"{$subject}\".\n\n";
-		$user_prompt .= "L'article doit contenir :\n";
-		$user_prompt .= "- Une introduction engageante (2-3 phrases)\n";
-		$user_prompt .= "- Exactement {$count} recette(s) détaillée(s)\n\n";
-		$user_prompt .= "Pour chaque recette, fournis :\n";
-		$user_prompt .= "- name : nom de la recette (court et accrocheur)\n";
-		$user_prompt .= "- ingredients : liste des ingrédients (array de strings)\n";
-		$user_prompt .= "- instructions : étapes de préparation (array de strings, numérotées)\n";
-		$user_prompt .= "- image_prompt : prompt pour générer une photo réaliste de la recette (en anglais, style 'professional food photography of...')\n\n";
-		$user_prompt .= "Format JSON attendu :\n";
-		$user_prompt .= "{\n";
-		$user_prompt .= "  \"intro\": \"Texte d'introduction...\",\n";
-		$user_prompt .= "  \"recipes\": [\n";
-		$user_prompt .= "    {\n";
-		$user_prompt .= "      \"name\": \"Nom de la recette\",\n";
-		$user_prompt .= "      \"ingredients\": [\"Ingrédient 1\", \"Ingrédient 2\"],\n";
-		$user_prompt .= "      \"instructions\": [\"Étape 1\", \"Étape 2\"],\n";
-		$user_prompt .= "      \"image_prompt\": \"professional food photography of...\"\n";
-		$user_prompt .= "    }\n";
-		$user_prompt .= "  ]\n";
-		$user_prompt .= "}\n\n";
-		$user_prompt .= "IMPORTANT : Réponds UNIQUEMENT avec le JSON, sans aucun texte avant ou après.";
 
 		// Récupérer le modèle depuis réglages
 		$model = ARGP_Settings::get_option( 'openai_model', 'gpt-4o' );
