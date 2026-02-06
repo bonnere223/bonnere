@@ -890,8 +890,13 @@ class ARGP_Ajax {
 			$user_prompt = str_replace( '{theme}', $subject, $user_prompt );
 			$user_prompt = str_replace( '{item}', $subject, $user_prompt );
 			
-			// Insister sur le nombre EXACT de recettes
-			$user_prompt = "\nGénère EXACTEMENT {$count} recette(s), pas plus, pas moins.\n\n" . $user_prompt;
+			// Insister sur le nombre ET le thème
+			$user_prompt = "\n⚠️ CONTRAINTES STRICTES :\n";
+			$user_prompt .= "- Génère EXACTEMENT {$count} recette(s), pas plus, pas moins.\n";
+			$user_prompt .= "- TOUTES les recettes doivent être sur le thème : \"{$subject}\"\n";
+			$user_prompt .= "- PAS de recettes hors sujet. Reste STRICTEMENT sur ce thème.\n";
+			$user_prompt .= "- Si le thème est \"wraps\", UNIQUEMENT des wraps. Si \"gratins\", UNIQUEMENT des gratins.\n\n";
+			$user_prompt .= $user_prompt;
 			
 			// Ajouter contrainte JSON APRÈS le prompt personnalisé
 			$user_prompt .= "\n\n--- FORMAT DE SORTIE OBLIGATOIRE ---\n";
@@ -915,15 +920,20 @@ class ARGP_Ajax {
 			ARGP_Settings::log( "Utilisation prompt personnalisé pour {$count} recette(s)", 'info' );
 		} else {
 			// Prompt par défaut si aucun personnalisé
-			$user_prompt = "Génère un article de blog complet sur le thème : \"{$subject}\".\n\n";
+			$user_prompt = "⚠️ CONTRAINTES STRICTES :\n";
+			$user_prompt .= "- Génère EXACTEMENT {$count} recette(s), pas plus, pas moins.\n";
+			$user_prompt .= "- TOUTES les recettes doivent être UNIQUEMENT sur le thème : \"{$subject}\"\n";
+			$user_prompt .= "- PAS de recettes hors sujet. STRICTEMENT ce thème.\n\n";
+			
+			$user_prompt .= "Génère un article de blog complet sur le thème : \"{$subject}\".\n\n";
 			$user_prompt .= "L'article doit contenir :\n";
 			$user_prompt .= "- Une introduction engageante (2-3 phrases)\n";
-			$user_prompt .= "- Exactement {$count} recette(s) détaillée(s)\n\n";
+			$user_prompt .= "- Exactement {$count} recette(s) détaillée(s) sur le thème \"{$subject}\"\n\n";
 			$user_prompt .= "Pour chaque recette, fournis :\n";
-			$user_prompt .= "- name : nom de la recette (court et accrocheur)\n";
+			$user_prompt .= "- name : nom de la recette (court et accrocheur, DOIT mentionner \"{$subject}\")\n";
 			$user_prompt .= "- ingredients : liste des ingrédients (array de strings)\n";
 			$user_prompt .= "- instructions : étapes de préparation (array de strings, numérotées)\n";
-			$user_prompt .= "- image_prompt : prompt pour générer une photo réaliste de la recette (en anglais, style 'professional food photography of...')\n\n";
+			$user_prompt .= "- image_prompt : prompt pour générer une photo réaliste de la recette (en anglais, style 'professional food photography of {$subject}...')\n\n";
 			$user_prompt .= "Format JSON attendu :\n";
 			$user_prompt .= "{\n";
 			$user_prompt .= "  \"intro\": \"Texte d'introduction...\",\n";
@@ -932,16 +942,20 @@ class ARGP_Ajax {
 			$user_prompt .= "      \"name\": \"Nom de la recette\",\n";
 			$user_prompt .= "      \"ingredients\": [\"Ingrédient 1\", \"Ingrédient 2\"],\n";
 			$user_prompt .= "      \"instructions\": [\"Étape 1\", \"Étape 2\"],\n";
-			$user_prompt .= "      \"image_prompt\": \"professional food photography of...\"\n";
+			$user_prompt .= "      \"image_prompt\": \"professional food photography of {$subject}...\"\n";
 			$user_prompt .= "    }\n";
 			$user_prompt .= "  ]\n";
 			$user_prompt .= "}\n\n";
+			$user_prompt .= "RAPPEL : Les {$count} recettes doivent TOUTES être des \"{$subject}\", rien d'autre.\n";
 			$user_prompt .= "IMPORTANT : Réponds UNIQUEMENT avec le JSON, sans aucun texte avant ou après.";
 		}
 
 		$system_prompt = "Tu es un chef cuisinier et rédacteur culinaire professionnel. " .
 			"Tu génères du contenu pour un blog de recettes grand public en français. " .
 			"Tes recettes sont claires, gourmandes, réalisables, et optimisées SEO. " .
+			"IMPORTANT : Toutes les recettes doivent être STRICTEMENT en rapport avec le thème demandé. " .
+			"Si le thème est \"wraps\", tu ne proposes QUE des wraps. Si c'est \"gratins\", QUE des gratins. " .
+			"Pas de recettes hors sujet. Reste TOUJOURS sur le thème principal. " .
 			"Tu ne donnes jamais de conseils médicaux ou d'allégations santé non prouvées. " .
 			"Tu réponds UNIQUEMENT en JSON valide sans markdown.";
 
