@@ -58,43 +58,43 @@ class ARGP_Admin {
 	 * Enregistre les menus admin
 	 */
 	public function register_menus() {
-		// Menu principal
+		// Menu principal - Accessible aux Éditeurs et supérieur
 		add_menu_page(
 			__( 'AI Recipe Generator Pro', 'ai-recipe-generator-pro' ),
 			__( 'AI Recipe Pro', 'ai-recipe-generator-pro' ),
-			'manage_options',
+			'edit_posts', // Éditeur et supérieur
 			$this->menu_slug,
 			array( $this, 'render_generate_page' ),
 			'dashicons-food',
-			30
+			3 // Position 3 : après Tableau de bord
 		);
 
-		// Sous-menu : Générer (par défaut, même page que le parent)
+		// Sous-menu : Générer - Accessible aux Éditeurs et supérieur
 		add_submenu_page(
 			$this->menu_slug,
 			__( 'Générer des recettes', 'ai-recipe-generator-pro' ),
 			__( 'Générer', 'ai-recipe-generator-pro' ),
-			'manage_options',
+			'edit_posts', // Éditeur et supérieur
 			$this->menu_slug,
 			array( $this, 'render_generate_page' )
 		);
 
-		// Sous-menu : Réglages
+		// Sous-menu : Réglages - Réservé aux Administrateurs
 		add_submenu_page(
 			$this->menu_slug,
 			__( 'Réglages & Diagnostics', 'ai-recipe-generator-pro' ),
 			__( 'Réglages', 'ai-recipe-generator-pro' ),
-			'manage_options',
+			'manage_options', // Admin seulement
 			'argp-settings',
 			array( $this, 'render_settings_page' )
 		);
 
-		// Sous-menu : Outils (Cache et maintenance)
+		// Sous-menu : Outils - Réservé aux Administrateurs
 		add_submenu_page(
 			$this->menu_slug,
 			__( 'Outils & Maintenance', 'ai-recipe-generator-pro' ),
 			__( 'Outils', 'ai-recipe-generator-pro' ),
-			'manage_options',
+			'manage_options', // Admin seulement
 			'argp-tools',
 			array( $this, 'render_tools_page' )
 		);
